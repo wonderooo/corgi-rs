@@ -2,13 +2,18 @@
 name = "corgi-rs"
 version = "0.1.0"
 edition = "2024"
+description = "Vehicle VIN decoding library based on NHTSA database for Rust"
+keywords = ["nhtsa", "vin", "vehicle decoding"]
+categories = ["automotive", "parsing", "encoding"]
+license = "MIT"
 
 [dependencies]
 sqlx = {version = "0.8.6", features = ["runtime-tokio", "sqlite", "macros"]}
 chrono = "0.4.43"
 
 [build-dependencies]
-dotenv = "0.15.0"
+ureq = "3.2.0"
+flate2 = "1.1.9"
 
 [dev-dependencies]
 tokio = {version = "1.49.0", features = ["full"]}
