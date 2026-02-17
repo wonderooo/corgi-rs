@@ -1,5 +1,6 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
+pub use crate::decoder::extractors::{BodyStyle, VehicleInfo};
 use crate::{
     CorgiError, VIN,
     db::Db,
@@ -14,42 +15,6 @@ use crate::{
     },
     pattern::{PatternDescriptor, PatternMatcher},
 };
-
-#[derive(Debug)]
-pub struct VehicleInfo {
-    pub make: String,
-    pub model: Option<String>,
-    pub year: i32,
-    pub series: Option<String>,
-    pub trim: Option<String>,
-    pub body_style: Option<BodyStyle>,
-    pub drive_type: Option<String>,
-    pub engine_type: Option<String>,
-    pub fuel_type: Option<String>,
-    pub transmission: Option<String>,
-    pub doors: Option<i32>,
-    pub gvwr: Option<String>,
-    pub manufacturer: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum BodyStyle {
-    Sedan,
-    Coupe,
-    Convertible,
-    Hatchback,
-    Wagon,
-    Suv,
-    Van,
-    Minivan,
-    Pickup,
-    Truck,
-    Trailer,
-    Tractor,
-    Bus,
-    Motorcycle,
-    Other,
-}
 
 #[derive(Debug)]
 pub enum VinDecoderError {
@@ -68,6 +33,9 @@ pub enum VinDecoderError {
     UnreadableWmi {
         message: String,
         code: WmiErrorCode,
+    },
+    Unexpected {
+        message: String,
     },
 }
 
@@ -95,7 +63,7 @@ impl VinDecoder {
 
         let model_year = extract_model_year(&vin)?;
         let wmi = extract_wmi(&vin)?;
-        let wmi_info = self.db.get_wmi_infos(&[&wmi]).await.unwrap().remove(0);
+        let wmi_info = self.db.get_wmi_infos(&[&wmi]).await?.remove(0);
         let (vds, vis) = extract_vds_vis(&vin)?;
 
         let pattern_descriptor = PatternDescriptor {
@@ -108,45 +76,134 @@ impl VinDecoder {
         let patterns = self
             .pattern_matcher
             .matches(vec![pattern_descriptor.clone()])
-            .await
-            .unwrap()
+            .await?
             .remove(&pattern_descriptor)
-            .unwrap();
+            .ok_or(CorgiError::VinDecoder(
+                vin,
+                VinDecoderError::Unexpected {
+                    message: "Could not find pattern descriptor in patterns map".to_string(),
+                },
+            ))?;
 
         let vehicle_info = extract_vehicle_info(wmi_info, model_year as i32, patterns);
         Ok(vehicle_info)
     }
 
-    pub async fn batch_decode(&self, vins: Vec<VIN>) -> Result<(), CorgiError> {
-        let (oks, errs) = vins
+    pub async fn batch_decode(
+        &self,
+        vins: Vec<VIN>,
+    ) -> HashMap<VIN, Result<VehicleInfo, CorgiError>> {
+        let (pattern_descriptors, invalid_structures) = vins
             .into_iter()
-            .map(|vin| -> Result<PatternDescriptor, CorgiError> {
-                validate_vin_structure(&vin)?;
-                validate_check_digit(&vin)?;
+            .map(|vin| {
+                fn make_pattern_descriptor(vin: &String) -> Result<PatternDescriptor, CorgiError> {
+                    validate_vin_structure(&vin)?;
+                    validate_check_digit(&vin)?;
 
-                let model_year = extract_model_year(&vin)?;
-                let wmi = extract_wmi(&vin)?;
-                let (vds, vis) = extract_vds_vis(&vin)?;
+                    let model_year = extract_model_year(&vin)?;
+                    let wmi = extract_wmi(&vin)?;
+                    let (vds, vis) = extract_vds_vis(&vin)?;
 
-                let pattern_descriptor = PatternDescriptor {
-                    wmi: wmi.to_string(),
-                    model_year: model_year as i32,
-                    vds: vds.to_string(),
-                    vis: vis.to_string(),
-                };
-
-                Ok(pattern_descriptor)
-            })
-            .fold((Vec::new(), Vec::new()), |(mut oks, mut errs), r| {
-                match r {
-                    Ok(v) => oks.push(v),
-                    Err(e) => errs.push(e),
+                    let pattern_descriptor = PatternDescriptor {
+                        wmi: wmi.to_string(),
+                        model_year: model_year as i32,
+                        vds: vds.to_string(),
+                        vis: vis.to_string(),
+                    };
+                    Ok(pattern_descriptor)
                 }
-                (oks, errs)
-            });
 
-        self.pattern_matcher.matches(oks).await.unwrap();
-        Ok(())
+                let pattern_descriptor = make_pattern_descriptor(&vin);
+                (vin, pattern_descriptor)
+            })
+            .fold(
+                (HashMap::new(), HashMap::new()),
+                |(mut oks, mut errs), (vin, r)| {
+                    match r {
+                        Ok(v) => {
+                            oks.insert(vin, v);
+                        }
+                        Err(e) => {
+                            errs.insert(vin, e);
+                        }
+                    }
+                    (oks, errs)
+                },
+            );
+
+        let wmis = pattern_descriptors
+            .values()
+            .map(|v| v.wmi.as_str())
+            .collect::<Vec<_>>();
+        let wmi_infos = match self.db.get_wmi_infos(&wmis).await {
+            Ok(infos) => infos,
+            Err(err) => {
+                let shared_err = Arc::new(err);
+
+                let mut wmi_errs = pattern_descriptors
+                    .into_keys()
+                    .map(|vin| (vin, Err(CorgiError::Shared(Arc::clone(&shared_err)))))
+                    .collect::<HashMap<_, _>>();
+
+                wmi_errs.extend(
+                    invalid_structures
+                        .into_iter()
+                        .map(|(vin, err)| (vin, Err(err))),
+                );
+                return wmi_errs;
+            }
+        };
+
+        let mut patterns = match self
+            .pattern_matcher
+            .matches(pattern_descriptors.values().cloned().collect())
+            .await
+        {
+            Ok(patterns) => patterns,
+            Err(err) => {
+                let shared_err = Arc::new(err);
+
+                let mut pattern_errs = pattern_descriptors
+                    .into_keys()
+                    .map(|vin| (vin, Err(CorgiError::Shared(Arc::clone(&shared_err)))))
+                    .collect::<HashMap<_, _>>();
+
+                pattern_errs.extend(
+                    invalid_structures
+                        .into_iter()
+                        .map(|(vin, err)| (vin, Err(err))),
+                );
+                return pattern_errs;
+            }
+        };
+
+        let mut vehicle_infos = pattern_descriptors
+            .into_iter()
+            .map(|(vin, desc)| {
+                if let Some(pattern) = patterns.remove(&desc)
+                    && let Some(wmi_info) =
+                        wmi_infos.iter().find(|wmi| wmi.code == desc.wmi).cloned()
+                {
+                    let vehicle_info = extract_vehicle_info(wmi_info, desc.model_year, pattern);
+                    return (vin, Ok(vehicle_info));
+                }
+
+                (
+                    vin.clone(),
+                    Err(CorgiError::VinDecoder(
+                        vin,
+                        VinDecoderError::Unexpected { message: "Could not find pattern descriptor in patterns map or wmi code in wmi infos".to_string() },
+                    )),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        vehicle_infos.extend(
+            invalid_structures
+                .into_iter()
+                .map(|(vin, err)| (vin, Err(err))),
+        );
+        vehicle_infos
     }
 }
 
@@ -155,12 +212,7 @@ pub mod extractors {
 
     use chrono::Datelike;
 
-    use crate::{
-        CorgiError,
-        decoder::{BodyStyle, VehicleInfo, VinDecoder, VinDecoderError},
-        pattern::PatternMatch,
-        types::WMIInfo,
-    };
+    use crate::{CorgiError, decoder::VinDecoderError, pattern::PatternMatch, types::WMIInfo};
 
     // Canonical VIN character sequence for a 30-year block (1980-2009 or 2010-2039)
     static MODEL_YEAR_CODES: &[char] = &[
@@ -286,6 +338,42 @@ pub mod extractors {
         Ok((vds, vis))
     }
 
+    #[derive(Debug)]
+    pub struct VehicleInfo {
+        pub make: String,
+        pub model: Option<String>,
+        pub year: i32,
+        pub series: Option<String>,
+        pub trim: Option<String>,
+        pub body_style: Option<BodyStyle>,
+        pub drive_type: Option<String>,
+        pub engine_type: Option<String>,
+        pub fuel_type: Option<String>,
+        pub transmission: Option<String>,
+        pub doors: Option<i32>,
+        pub gvwr: Option<String>,
+        pub manufacturer: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub enum BodyStyle {
+        Sedan,
+        Coupe,
+        Convertible,
+        Hatchback,
+        Wagon,
+        Suv,
+        Van,
+        Minivan,
+        Pickup,
+        Truck,
+        Trailer,
+        Tractor,
+        Bus,
+        Motorcycle,
+        Other,
+    }
+
     pub fn extract_vehicle_info(
         wmi_info: WMIInfo,
         model_year: i32,
@@ -345,6 +433,58 @@ pub mod extractors {
         }
 
         vehicle_info
+    }
+
+    impl From<&str> for BodyStyle {
+        fn from(value: &str) -> Self {
+            match value {
+                // Sedans and coupes
+                "Sedan/Saloon" | "Sedan" | "4-Door Sedan" | "2-Door Sedan" | "4-Door Saloon" => {
+                    BodyStyle::Sedan
+                }
+                "Coupe" | "2-Door Coupe" => BodyStyle::Coupe,
+                "Convertible" | "2-Door Convertible" | "4-Door Convertible" => {
+                    BodyStyle::Convertible
+                }
+
+                // Hatchbacks and wagons
+                "Hatchback" | "3-Door Hatchback" | "5-Door Hatchback" => BodyStyle::Hatchback,
+                "Station Wagon" | "Wagon" => BodyStyle::Wagon,
+
+                // SUVs and crossovers
+                "Sport Utility Vehicle (SUV)/Multi-Purpose Vehicle (MPV)"
+                | "Sport Utility Vehicle (SUV)"
+                | "SUV"
+                | "Crossover Utility Vehicle (CUV)"
+                | "Crossover" => BodyStyle::Suv,
+
+                // Vans and minivans
+                "Van" | "Cargo Van" | "Passenger Van" => BodyStyle::Van,
+                "Minivan" => BodyStyle::Minivan,
+
+                // Trucks, pickups, trailers
+                "Pickup"
+                | "Pickup Truck"
+                | "Standard Pickup Truck"
+                | "Extended Cab Pickup"
+                | "Crew Cab Pickup" => BodyStyle::Pickup,
+                "Truck" => BodyStyle::Truck,
+                "Trailer" => BodyStyle::Trailer,
+                "Tractor" => BodyStyle::Tractor,
+
+                // Bus
+                "Bus" | "School Bus" => BodyStyle::Bus,
+
+                // Motorcycle
+                "Motorcycle" => BodyStyle::Motorcycle,
+
+                // Catch-all
+                "Incomplete Vehicle" | "Other" => BodyStyle::Other,
+
+                // Default for unknown strings
+                _ => BodyStyle::Other,
+            }
+        }
     }
 
     pub static BODY_STYLE_MAP: LazyLock<HashMap<&'static str, BodyStyle>> = LazyLock::new(|| {
@@ -628,67 +768,32 @@ pub mod validators {
     }
 }
 
-impl From<&str> for BodyStyle {
-    fn from(value: &str) -> Self {
-        match value {
-            // Sedans and coupes
-            "Sedan/Saloon" | "Sedan" | "4-Door Sedan" | "2-Door Sedan" | "4-Door Saloon" => {
-                BodyStyle::Sedan
-            }
-            "Coupe" | "2-Door Coupe" => BodyStyle::Coupe,
-            "Convertible" | "2-Door Convertible" | "4-Door Convertible" => BodyStyle::Convertible,
-
-            // Hatchbacks and wagons
-            "Hatchback" | "3-Door Hatchback" | "5-Door Hatchback" => BodyStyle::Hatchback,
-            "Station Wagon" | "Wagon" => BodyStyle::Wagon,
-
-            // SUVs and crossovers
-            "Sport Utility Vehicle (SUV)/Multi-Purpose Vehicle (MPV)"
-            | "Sport Utility Vehicle (SUV)"
-            | "SUV"
-            | "Crossover Utility Vehicle (CUV)"
-            | "Crossover" => BodyStyle::Suv,
-
-            // Vans and minivans
-            "Van" | "Cargo Van" | "Passenger Van" => BodyStyle::Van,
-            "Minivan" => BodyStyle::Minivan,
-
-            // Trucks, pickups, trailers
-            "Pickup"
-            | "Pickup Truck"
-            | "Standard Pickup Truck"
-            | "Extended Cab Pickup"
-            | "Crew Cab Pickup" => BodyStyle::Pickup,
-            "Truck" => BodyStyle::Truck,
-            "Trailer" => BodyStyle::Trailer,
-            "Tractor" => BodyStyle::Tractor,
-
-            // Bus
-            "Bus" | "School Bus" => BodyStyle::Bus,
-
-            // Motorcycle
-            "Motorcycle" => BodyStyle::Motorcycle,
-
-            // Catch-all
-            "Incomplete Vehicle" | "Other" => BodyStyle::Other,
-
-            // Default for unknown strings
-            _ => BodyStyle::Other,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_decoder_simple() {
+    async fn test_decoder_simple() -> Result<(), CorgiError> {
         let decoder = VinDecoder::new_with_default_db().await;
-        let vi = decoder
-            .decode("2FTEF14H8TCA73155".to_string())
-            .await
-            .unwrap();
+        let info = decoder.decode("2FTEF14H8TCA73155".to_string()).await?;
+        assert_eq!(info.make, "Ford".to_string());
+        assert_eq!(info.model, Some("F-150".to_string()));
+        assert_eq!(info.year, 1996);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_decoder_simple_batch() {
+        let decoder = VinDecoder::new_with_default_db().await;
+        let vins = vec![
+            "KM8K2CAB4PU001140".to_string(),
+            "5N1AT2MT9LC784186".to_string(),
+            "2FTEF14H8TCA73155".to_string(),
+            "1FTFW1ET6DFA4553".to_string(),
+        ];
+
+        let vi = decoder.batch_decode(vins).await;
         println!("{vi:?}")
     }
 }

@@ -2,8 +2,9 @@ use std::{collections::HashMap, ops::Deref};
 
 use sqlx::{Row, SqlitePool};
 
-use crate::types::{
-    LookupId, LookupName, Pattern, PatternQuery, Schema, SchemaQuery, TableName, WMIInfo,
+use crate::{
+    CorgiError,
+    types::{LookupId, LookupName, Pattern, PatternQuery, Schema, SchemaQuery, TableName, WMIInfo},
 };
 
 pub struct Db {
@@ -20,7 +21,7 @@ impl Db {
         Self { pool }
     }
 
-    pub(crate) async fn get_wmi_infos(&self, wmis: &[&str]) -> Result<Vec<WMIInfo>, sqlx::Error> {
+    pub(crate) async fn get_wmi_infos(&self, wmis: &[&str]) -> Result<Vec<WMIInfo>, CorgiError> {
         let values_clause = wmis.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
         let sql = format!(
             r#"
@@ -47,7 +48,7 @@ impl Db {
                         LEFT JOIN Make ma ON wm.MakeId = ma.Id
                         LEFT JOIN Country c ON w.CountryId = c.Id
                         LEFT JOIN VehicleType vt ON w.VehicleTypeId = vt.Id
-                        WHERE w.Wmi = {}
+                        WHERE w.Wmi IN ({})
                       )
                       SELECT
                         code,
@@ -74,7 +75,7 @@ impl Db {
     pub(crate) async fn get_schemas(
         &self,
         schema_queries: Vec<SchemaQuery>,
-    ) -> Result<Vec<Schema>, sqlx::Error> {
+    ) -> Result<Vec<Schema>, CorgiError> {
         let values_clause = schema_queries
             .iter()
             .map(|_| "(?, ?, ?, ?)")
@@ -110,7 +111,7 @@ impl Db {
     pub(crate) async fn get_patterns(
         &self,
         pattern_queries: Vec<PatternQuery>,
-    ) -> Result<Vec<Pattern>, sqlx::Error> {
+    ) -> Result<Vec<Pattern>, CorgiError> {
         let values_clause = pattern_queries
             .iter()
             .map(|_| "(?, ?, ?, ?, ?)")
@@ -200,7 +201,7 @@ impl Db {
     pub(crate) async fn get_lookup(
         &self,
         table_ids: HashMap<TableName, Vec<LookupId>>,
-    ) -> Result<HashMap<TableName, HashMap<LookupId, LookupName>>, sqlx::Error> {
+    ) -> Result<HashMap<TableName, HashMap<LookupId, LookupName>>, CorgiError> {
         if table_ids.is_empty() {
             return Ok(HashMap::new());
         }
@@ -263,8 +264,6 @@ impl Deref for Db {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
-
     use super::*;
 
     #[test]
@@ -283,7 +282,7 @@ mod tests {
     #[tokio::test]
     async fn test_db_wmi() {
         let db = Db::new().await;
-        let wmi_info = db.get_wmi_infos(&["KM8"]).await;
+        let wmi_info = db.get_wmi_infos(&["KM8", "4T1"]).await;
         assert!(wmi_info.is_ok())
     }
 
@@ -302,7 +301,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_db_schema_two_elements() -> Result<(), Box<dyn Error>> {
+    async fn test_db_schema_two_elements() -> Result<(), CorgiError> {
         let db = Db::new().await;
         let mut schemas_hyundai = db
             .get_schemas(vec![SchemaQuery {
@@ -345,7 +344,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_db_schema_two_elements_overlapping() -> Result<(), Box<dyn Error>> {
+    async fn test_db_schema_two_elements_overlapping() -> Result<(), CorgiError> {
         let db = Db::new().await;
         let mut schemas_hyundai_1 = db
             .get_schemas(vec![SchemaQuery {
@@ -387,7 +386,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_db_pattern() -> Result<(), Box<dyn Error>> {
+    async fn test_db_pattern() -> Result<(), CorgiError> {
         let db = Db::new().await;
         let patterns = db
             .get_patterns(vec![PatternQuery {
@@ -404,7 +403,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_db_lookup() -> Result<(), Box<dyn Error>> {
+    async fn test_db_lookup() -> Result<(), CorgiError> {
         let db = Db::new().await;
         let mut map = HashMap::new();
         map.insert("FuelType".to_string(), vec!["18".to_string()]);

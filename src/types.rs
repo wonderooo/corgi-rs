@@ -4,7 +4,7 @@ pub type TableName = String;
 pub type LookupId = String;
 pub type LookupName = String;
 
-#[derive(FromRow, Debug, PartialEq)]
+#[derive(FromRow, Debug, PartialEq, Clone)]
 pub struct WMIInfo {
     pub code: String,
 

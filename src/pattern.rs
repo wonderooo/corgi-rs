@@ -1,10 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
-    error::Error,
     sync::Arc,
 };
 
 use crate::{
+    CorgiError,
     db::Db,
     types::{
         LookupId, PatternQuery, PatternType, RawPattern, ResolvedPattern, SchemaQuery, TableName,
@@ -93,7 +93,7 @@ impl PatternMatcher {
     pub async fn matches(
         &self,
         pattern_descriptors: Vec<PatternDescriptor>,
-    ) -> Result<HashMap<PatternDescriptor, Vec<PatternMatch>>, Box<dyn Error>> {
+    ) -> Result<HashMap<PatternDescriptor, Vec<PatternMatch>>, CorgiError> {
         //
         // Get raw matches
         //
@@ -198,7 +198,7 @@ impl PatternMatcher {
     pub async fn raw_matches(
         &self,
         pattern_descriptors: Vec<PatternDescriptor>,
-    ) -> Result<HashMap<PatternDescriptor, Vec<RawPattern>>, Box<dyn Error>> {
+    ) -> Result<HashMap<PatternDescriptor, Vec<RawPattern>>, CorgiError> {
         //
         // Get schemas for all wmi, model year pairs
         //
@@ -713,7 +713,7 @@ mod tests {
     #[tokio::test]
     async fn test_pattern_raw() {
         let matcher = PatternMatcher::new_with_default_db().await;
-        let v = vec![
+        let _v = vec![
             PatternDescriptor {
                 wmi: "2C3".to_string(),
                 vds: "CDXBG1".to_string(),
@@ -757,7 +757,6 @@ mod tests {
             vis: "9A060971".to_string(),
             model_year: 2009,
         }];
-        let map = matcher.matches(v).await.unwrap();
-        println!("{map:?}");
+        matcher.matches(v).await.unwrap();
     }
 }
