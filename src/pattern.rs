@@ -713,7 +713,7 @@ mod tests {
     #[tokio::test]
     async fn test_pattern_raw() {
         let matcher = PatternMatcher::new_with_default_db().await;
-        let v = vec![
+        let _v = vec![
             PatternDescriptor {
                 wmi: "2C3".to_string(),
                 vds: "CDXBG1".to_string(),
@@ -757,6 +757,6 @@ mod tests {
             vis: "9A060971".to_string(),
             model_year: 2009,
         }];
-        let map = matcher.matches(v).await.unwrap();
+        matcher.matches(v).await.unwrap();
     }
 }
