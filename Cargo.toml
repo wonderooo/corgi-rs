@@ -3,7 +3,7 @@ name = "corgi-rs"
 version = "0.1.0"
 edition = "2024"
 description = "Vehicle VIN decoding library based on NHTSA database for Rust"
-keywords = ["nhtsa", "vin", "vehicle decoding"]
+keywords = ["nhtsa", "vin", "vehicles", "decoding"]
 categories = ["automotive", "parsing", "encoding"]
 license = "MIT"
 
