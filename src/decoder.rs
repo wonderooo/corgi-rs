@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     CorgiError, VIN,
@@ -117,36 +117,91 @@ impl VinDecoder {
         Ok(vehicle_info)
     }
 
-    pub async fn batch_decode(&self, vins: Vec<VIN>) -> Result<(), CorgiError> {
-        let (oks, errs) = vins
+    pub async fn batch_decode(
+        &self,
+        vins: Vec<VIN>,
+    ) -> HashMap<VIN, Result<VehicleInfo, CorgiError>> {
+        let (valid_structures, invalid_structures) = vins
             .into_iter()
-            .map(|vin| -> Result<PatternDescriptor, CorgiError> {
-                validate_vin_structure(&vin)?;
-                validate_check_digit(&vin)?;
+            .map(|vin| {
+                fn make_pattern_descriptor(vin: &String) -> Result<PatternDescriptor, CorgiError> {
+                    validate_vin_structure(&vin)?;
+                    validate_check_digit(&vin)?;
 
-                let model_year = extract_model_year(&vin)?;
-                let wmi = extract_wmi(&vin)?;
-                let (vds, vis) = extract_vds_vis(&vin)?;
+                    let model_year = extract_model_year(&vin)?;
+                    let wmi = extract_wmi(&vin)?;
+                    let (vds, vis) = extract_vds_vis(&vin)?;
 
-                let pattern_descriptor = PatternDescriptor {
-                    wmi: wmi.to_string(),
-                    model_year: model_year as i32,
-                    vds: vds.to_string(),
-                    vis: vis.to_string(),
-                };
-
-                Ok(pattern_descriptor)
-            })
-            .fold((Vec::new(), Vec::new()), |(mut oks, mut errs), r| {
-                match r {
-                    Ok(v) => oks.push(v),
-                    Err(e) => errs.push(e),
+                    let pattern_descriptor = PatternDescriptor {
+                        wmi: wmi.to_string(),
+                        model_year: model_year as i32,
+                        vds: vds.to_string(),
+                        vis: vis.to_string(),
+                    };
+                    Ok(pattern_descriptor)
                 }
-                (oks, errs)
-            });
 
-        self.pattern_matcher.matches(oks).await.unwrap();
-        Ok(())
+                let pattern_descriptor = make_pattern_descriptor(&vin);
+                (vin, pattern_descriptor)
+            })
+            .fold(
+                (HashMap::new(), HashMap::new()),
+                |(mut oks, mut errs), (vin, r)| {
+                    match r {
+                        Ok(v) => {
+                            oks.insert(vin, v);
+                        }
+                        Err(e) => {
+                            errs.insert(vin, e);
+                        }
+                    }
+                    (oks, errs)
+                },
+            );
+
+        let valid_wmis = valid_structures
+            .values()
+            .map(|v| v.wmi.as_str())
+            .collect::<Vec<_>>();
+        let wmi_infos = self.db.get_wmi_infos(&valid_wmis).await.unwrap();
+
+        let mut patterns = self
+            .pattern_matcher
+            .matches(valid_structures.values().cloned().collect())
+            .await
+            .unwrap();
+
+        let mut vehicle_infos = valid_structures
+            .into_iter()
+            .map(|(vin, desc)| {
+                if let Some(pattern) = patterns.remove(&desc)
+                    && let Some(wmi_info) =
+                        wmi_infos.iter().find(|wmi| wmi.code == desc.wmi).cloned()
+                {
+                    let vehicle_info = extract_vehicle_info(wmi_info, desc.model_year, pattern);
+                    return (vin, Ok(vehicle_info));
+                }
+
+                (
+                    vin,
+                    Err(CorgiError::VinDecoder(
+                        "dada".to_string(),
+                        VinDecoderError::UnreadableWmi {
+                            message: "dada".to_string(),
+                            code: WmiErrorCode::InvalidVinLength,
+                        },
+                    )),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        vehicle_infos.extend(
+            invalid_structures
+                .into_iter()
+                .map(|(vin, err)| (vin, Err(err))),
+        );
+
+        vehicle_infos
     }
 }
 
@@ -157,7 +212,7 @@ pub mod extractors {
 
     use crate::{
         CorgiError,
-        decoder::{BodyStyle, VehicleInfo, VinDecoder, VinDecoderError},
+        decoder::{BodyStyle, VehicleInfo, VinDecoderError},
         pattern::PatternMatch,
         types::WMIInfo,
     };
@@ -689,6 +744,18 @@ mod tests {
             .decode("2FTEF14H8TCA73155".to_string())
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_decoder_simple_batch() {
+        let decoder = VinDecoder::new_with_default_db().await;
+        let vins = vec![
+            "KM8K2CAB4PU001140".to_string(),
+            "5N1AT2MT9LC784186".to_string(),
+            "2FTEF14H8TCA73155".to_string(),
+        ];
+
+        let vi = decoder.batch_decode(vins).await;
         println!("{vi:?}")
     }
 }
