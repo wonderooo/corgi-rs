@@ -10,10 +10,12 @@ license = "MIT"
 [dependencies]
 sqlx = {version = "0.8.6", features = ["runtime-tokio", "sqlite", "macros"]}
 chrono = "0.4.43"
+dirs = "6.0.0"
 
 [build-dependencies]
 ureq = "3.2.0"
 flate2 = "1.1.9"
+dirs = "6.0.0"
 
 [dev-dependencies]
 tokio = {version = "1.49.0", features = ["full"]}

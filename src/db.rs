@@ -13,7 +13,13 @@ pub struct Db {
 
 impl Db {
     pub async fn new() -> Self {
-        let url = std::env::var("DATABASE_URL").expect("database url env var missing");
+        let url = std::env::var("DATABASE_URL").unwrap_or(
+            dirs::home_dir()
+                .expect("home dir env variable not set")
+                .join(".corgi-rs-cache/vpic.lite.db")
+                .display()
+                .to_string(),
+        );
         let pool = SqlitePool::connect(&url)
             .await
             .expect("sqlite connection failure");
@@ -265,12 +271,6 @@ impl Deref for Db {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_db_env() {
-        let url = std::env::var("DATABASE_URL");
-        assert!(url.is_ok())
-    }
 
     #[tokio::test]
     async fn test_db_establish_connection() {
