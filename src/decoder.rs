@@ -338,7 +338,7 @@ pub mod extractors {
         Ok((vds, vis))
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
     pub struct VehicleInfo {
         pub make: String,
         pub model: Option<String>,
@@ -355,7 +355,7 @@ pub mod extractors {
         pub manufacturer: Option<String>,
     }
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub enum BodyStyle {
         Sedan,
         Coupe,
@@ -793,7 +793,73 @@ mod tests {
             "1FTFW1ET6DFA4553".to_string(),
         ];
 
-        let vi = decoder.batch_decode(vins).await;
-        println!("{vi:?}")
+        let start = std::time::Instant::now();
+        let _vi = decoder.batch_decode(vins).await;
+        let elapsed = start.elapsed();
+        println!("{}", elapsed.as_millis())
+    }
+
+    #[tokio::test]
+    async fn test_decoder_many_batch() {
+        let decoder = VinDecoder::new_with_default_db().await;
+        let vins = vec![
+            "JF2SH6BC0AH793767".to_string(),
+            "3MZBN1U7XHM117646".to_string(),
+            "1N4AL3AP9JC167911".to_string(),
+            "2GKFLREK1C6274551".to_string(),
+            "1N4BL4DV3SN327727".to_string(),
+            "1D7KS28C06J225332".to_string(),
+            "1GTG6CE3XF1188367".to_string(),
+            "4S4BSAFC6J3260988".to_string(),
+            "3VW167AJXHM200537".to_string(),
+            "1N4AA6AP3GC395015".to_string(),
+            "3GNAXKEV6NL308789".to_string(),
+            "TRUC1AFV0J1007485".to_string(),
+            "1B3CC4FB2AN196470".to_string(),
+            "1FTEW1EG8GFB86393".to_string(),
+            "2T1BURHE1JC988530".to_string(),
+            "1FMCU9GD1JUC10420".to_string(),
+            "JN8BT3BB1PW210974".to_string(),
+            "2GNALAEK1E6353543".to_string(),
+            "2HKRW2H27KH152967".to_string(),
+            "1C6RR7GT1ES116185".to_string(),
+            "KMHTC6ADXCU023903".to_string(),
+            "JN8AF5MR0BT021235".to_string(),
+            "1B3CC5FV3AN226947".to_string(),
+            "4T1BB46K47U028658".to_string(),
+            "1FMCU9GXXGUA46720".to_string(),
+            "1FMCU9HD7JUB88759".to_string(),
+            "2C3CDXMG6PH537452".to_string(),
+            "1GKS2KKL8RR203124".to_string(),
+            "2GNALCEK4G1159830".to_string(),
+            "5FNYF8H64NB029552".to_string(),
+            "1G1ZC5EB1AF258296".to_string(),
+            "1G2ZG57B794208829".to_string(),
+            "2T1BURHE6KC171555".to_string(),
+            "4S4BSANC6K3366991".to_string(),
+            "2FABP7BV0BX171783".to_string(),
+            "1FTZR15E67PA73303".to_string(),
+            "WMWSY3C53CT144300".to_string(),
+            "JF2GTAEC1KH399666".to_string(),
+            "3KPA24AD2ME422520".to_string(),
+            "1N6AD0FV9BC419605".to_string(),
+            "WVGBV7AX4GW617614".to_string(),
+            "2HGFG12847H501740".to_string(),
+            "VNKKTUD31FA052307".to_string(),
+            "JTMGB3FV6RD171516".to_string(),
+            "1FUJCYCY3FHGF8070".to_string(),
+            "5TDGSKFCXMS019048".to_string(),
+            "1FTFW1ET6EFA96898".to_string(),
+            "3VW2K7AJ8EM354921".to_string(),
+            "1GNES13H672127302".to_string(),
+            "5NMSH73E07H116164".to_string(),
+        ];
+        let vins_repeated = (0..10).flat_map(|_| vins.iter().cloned()).collect();
+
+        let start = std::time::Instant::now();
+        let vi = decoder.batch_decode(vins_repeated).await;
+        let elapsed = start.elapsed();
+        println!("{vi:#?}");
+        println!("{}", elapsed.as_millis())
     }
 }
