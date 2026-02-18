@@ -1,6 +1,6 @@
 [package]
 name = "corgi-rs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "Vehicle VIN decoding library based on NHTSA database for Rust"
 keywords = ["nhtsa", "vin", "vehicles", "decoding"]
