@@ -208,7 +208,7 @@ impl VinDecoder {
 }
 
 pub mod extractors {
-    use std::{borrow::Cow, collections::HashMap, sync::LazyLock};
+    use std::{borrow::Cow, collections::HashMap, fmt::Display, sync::LazyLock};
 
     use chrono::Datelike;
 
@@ -484,6 +484,30 @@ pub mod extractors {
                 // Default for unknown strings
                 _ => BodyStyle::Other,
             }
+        }
+    }
+
+    impl Display for BodyStyle {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let text = match self {
+                Self::Sedan => "Sedan",
+                Self::Coupe => "Coupe",
+                Self::Convertible => "Convertible",
+                Self::Hatchback => "Hatchback",
+                Self::Wagon => "Wagon",
+                Self::Suv => "Suv",
+                Self::Van => "Van",
+                Self::Minivan => "Minivan",
+                Self::Pickup => "Pickup",
+                Self::Truck => "Truck",
+                Self::Trailer => "Trailer",
+                Self::Tractor => "Tractor",
+                Self::Bus => "Bus",
+                Self::Motorcycle => "Motorcycle",
+                Self::Other => "Other",
+            };
+
+            write!(f, "{text}")
         }
     }
 
