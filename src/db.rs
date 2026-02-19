@@ -100,7 +100,7 @@ impl Db {
                 JOIN VinSchema vs ON wvs.VinSchemaId = vs.Id
                 WHERE wyp.ModelYear >= wvs.YearFrom
                 AND (wvs.YearTo IS NULL OR wyp.ModelYear <= wvs.YearTo)
-                GROUP BY vs.Id, vs.Name;
+                GROUP BY vs.Id, vs.Name, wyp.Wmi, wyp.Vds, wyp.Vis;
             "#,
             &values_clause
         );
@@ -399,6 +399,47 @@ mod tests {
             .await?;
 
         assert!(patterns.len() == 11);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_db_pattern_many() -> Result<(), CorgiError> {
+        let db = Db::new().await;
+
+        let schemas = db
+            .get_schemas(vec![
+                SchemaQuery {
+                    wmi: "1C4".to_string(),
+                    model_year: 2019,
+                    vds: "RJFBG4".to_string(),
+                    vis: "KC715074".to_string(),
+                },
+                SchemaQuery {
+                    wmi: "1C4".to_string(),
+                    model_year: 2019,
+                    vds: "RJECG1".to_string(),
+                    vis: "HC752004".to_string(),
+                },
+            ])
+            .await?;
+
+        let patterns = db
+            .get_patterns(
+                schemas
+                    .into_iter()
+                    .map(|s| PatternQuery {
+                        schema_id: s.schema_id,
+                        wmi: s.wmi,
+                        model_year: s.model_year,
+                        vds: s.vds,
+                        vis: s.vis,
+                    })
+                    .collect(),
+            )
+            .await?
+            .len();
+        println!("{patterns:#?}");
+
         Ok(())
     }
 

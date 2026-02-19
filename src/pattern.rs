@@ -3,6 +3,8 @@ use std::{
     sync::Arc,
 };
 
+use futures::StreamExt;
+
 use crate::{
     CorgiError,
     db::Db,
@@ -50,7 +52,7 @@ pub struct PatternDescriptor {
     pub vis: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PatternMatch {
     pub element: String,
     pub element_code: String,
@@ -62,7 +64,7 @@ pub struct PatternMatch {
     pub metadata: Option<Metadata>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Metadata {
     pub lookup_table_name: Option<String>,
     pub group_name: Option<String>,
@@ -72,7 +74,7 @@ pub struct Metadata {
     pub match_details: Option<MatchDetails>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MatchDetails {
     pub exact_matches: Option<i32>,
     pub wildcard_matches: Option<i32>,
@@ -266,7 +268,16 @@ impl PatternMatcher {
                 }
             }
         }
-        let lookup = self.db.get_lookup(lookup_map).await?;
+
+        let chunked_lookup_map = chunk_map(&lookup_map, 32_766);
+        let lookup = futures::stream::iter(chunked_lookup_map)
+            .then(|lm| self.db.get_lookup(lm))
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .map(|r| r.unwrap())
+            .flatten()
+            .collect::<HashMap<_, _>>();
 
         //
         // Apply resolved lookup names to patterns
@@ -681,6 +692,44 @@ pub fn is_char_in_range(ch: char, pattern: &str) -> bool {
     }
 
     false
+}
+
+fn chunk_map(
+    input: &HashMap<String, Vec<String>>,
+    chunk_size: usize,
+) -> Vec<HashMap<String, Vec<String>>> {
+    let mut chunks = Vec::new();
+    let mut current_chunk = HashMap::new();
+    let mut current_count = 0;
+
+    for (key, ids) in input {
+        let mut start = 0;
+        while start < ids.len() {
+            let remaining_space = chunk_size - current_count;
+            let end = (start + remaining_space).min(ids.len());
+            let slice = ids[start..end].to_vec();
+
+            current_chunk
+                .entry(key.clone())
+                .or_insert_with(Vec::new)
+                .extend(slice);
+
+            current_count += end - start;
+            start = end;
+
+            if current_count >= chunk_size {
+                chunks.push(current_chunk);
+                current_chunk = HashMap::new();
+                current_count = 0;
+            }
+        }
+    }
+
+    if !current_chunk.is_empty() {
+        chunks.push(current_chunk);
+    }
+
+    chunks
 }
 
 impl From<RawPattern> for PatternMatch {

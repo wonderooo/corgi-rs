@@ -87,7 +87,7 @@ pub struct ResolvedPattern {
     pub resolved: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum PatternType {
     VDS,
     VIS,
