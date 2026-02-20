@@ -12,11 +12,13 @@ sqlx = {version = "0.8.6", features = ["runtime-tokio", "sqlite", "macros"]}
 chrono = "0.4.43"
 dirs = "6.0.0"
 futures = "0.3.32"
+phf = { version = "0.13.1", features = ["macros"] }
 
 [build-dependencies]
 ureq = "3.2.0"
 flate2 = "1.1.9"
 dirs = "6.0.0"
+phf_codegen = "0.13.1"
 
 [dev-dependencies]
 tokio = {version = "1.49.0", features = ["full"]}
