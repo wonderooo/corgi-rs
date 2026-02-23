@@ -1,9 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
-
 pub use crate::decoder::extractors::{BodyStyle, VehicleInfo};
 use crate::{
-    CorgiError, VIN,
-    db::Db,
+    CorgiError, Make,
     decoder::{
         extractors::{
             ModelYearErrorCode, WmiErrorCode, extract_model_year, extract_vds_vis,
@@ -13,7 +10,8 @@ use crate::{
             CheckDigitErrorCode, StructureErrorCode, validate_check_digit, validate_vin_structure,
         },
     },
-    pattern::{PatternDescriptor, PatternMatcher},
+    maps::FstRkyvMap,
+    pattern::{MatchQuery, PatternMatcher},
 };
 
 #[derive(Debug)]
@@ -41,169 +39,41 @@ pub enum VinDecoderError {
 
 pub struct VinDecoder {
     pattern_matcher: PatternMatcher,
-    db: Arc<Db>,
+    wmi_make_map: FstRkyvMap<Make>,
 }
 
 impl VinDecoder {
-    pub fn new(db: Arc<Db>) -> Self {
+    pub fn new() -> Self {
         Self {
-            pattern_matcher: PatternMatcher::new(Arc::clone(&db)),
-            db,
+            pattern_matcher: PatternMatcher::new(),
+            wmi_make_map: FstRkyvMap::new(),
         }
     }
 
-    pub async fn new_with_default_db() -> Self {
-        let db = Db::new().await;
-        Self::new(Arc::new(db))
-    }
-
-    pub async fn decode(&self, vin: String) -> Result<VehicleInfo, CorgiError> {
+    pub fn decode(&self, vin: &String) -> Result<VehicleInfo, CorgiError> {
         validate_vin_structure(&vin)?;
         validate_check_digit(&vin)?;
 
         let model_year = extract_model_year(&vin)?;
         let wmi = extract_wmi(&vin)?;
-        let wmi_info = self.db.get_wmi_infos(&[&wmi]).await?.remove(0);
+        let make = self
+            .wmi_make_map
+            .get(&wmi)
+            .map(|mut ma| ma.remove(0).make)
+            .unwrap_or("".to_string());
         let (vds, vis) = extract_vds_vis(&vin)?;
 
-        let pattern_descriptor = PatternDescriptor {
-            wmi: wmi.to_string(),
+        let query = MatchQuery {
+            wmi: &wmi,
             model_year: model_year as i32,
-            vds: vds.to_string(),
-            vis: vis.to_string(),
+            vds,
+            vis,
         };
 
-        let patterns = self
-            .pattern_matcher
-            .matches(vec![pattern_descriptor.clone()])
-            .await?
-            .remove(&pattern_descriptor)
-            .ok_or(CorgiError::VinDecoder(
-                vin,
-                VinDecoderError::Unexpected {
-                    message: "Could not find pattern descriptor in patterns map".to_string(),
-                },
-            ))?;
+        let patterns = self.pattern_matcher.matches(&query);
 
-        let vehicle_info = extract_vehicle_info(wmi_info, model_year as i32, patterns);
+        let vehicle_info = extract_vehicle_info(make, model_year as i32, patterns);
         Ok(vehicle_info)
-    }
-
-    pub async fn batch_decode(
-        &self,
-        vins: Vec<VIN>,
-    ) -> HashMap<VIN, Result<VehicleInfo, CorgiError>> {
-        let (pattern_descriptors, invalid_structures) = vins
-            .into_iter()
-            .map(|vin| {
-                fn make_pattern_descriptor(vin: &String) -> Result<PatternDescriptor, CorgiError> {
-                    validate_vin_structure(&vin)?;
-                    validate_check_digit(&vin)?;
-
-                    let model_year = extract_model_year(&vin)?;
-                    let wmi = extract_wmi(&vin)?;
-                    let (vds, vis) = extract_vds_vis(&vin)?;
-
-                    let pattern_descriptor = PatternDescriptor {
-                        wmi: wmi.to_string(),
-                        model_year: model_year as i32,
-                        vds: vds.to_string(),
-                        vis: vis.to_string(),
-                    };
-                    Ok(pattern_descriptor)
-                }
-
-                let pattern_descriptor = make_pattern_descriptor(&vin);
-                (vin, pattern_descriptor)
-            })
-            .fold(
-                (HashMap::new(), HashMap::new()),
-                |(mut oks, mut errs), (vin, r)| {
-                    match r {
-                        Ok(v) => {
-                            oks.insert(vin, v);
-                        }
-                        Err(e) => {
-                            errs.insert(vin, e);
-                        }
-                    }
-                    (oks, errs)
-                },
-            );
-
-        let wmis = pattern_descriptors
-            .values()
-            .map(|v| v.wmi.as_str())
-            .collect::<Vec<_>>();
-        let wmi_infos = match self.db.get_wmi_infos(&wmis).await {
-            Ok(infos) => infos,
-            Err(err) => {
-                let shared_err = Arc::new(err);
-
-                let mut wmi_errs = pattern_descriptors
-                    .into_keys()
-                    .map(|vin| (vin, Err(CorgiError::Shared(Arc::clone(&shared_err)))))
-                    .collect::<HashMap<_, _>>();
-
-                wmi_errs.extend(
-                    invalid_structures
-                        .into_iter()
-                        .map(|(vin, err)| (vin, Err(err))),
-                );
-                return wmi_errs;
-            }
-        };
-
-        let mut patterns = match self
-            .pattern_matcher
-            .matches(pattern_descriptors.values().cloned().collect())
-            .await
-        {
-            Ok(patterns) => patterns,
-            Err(err) => {
-                let shared_err = Arc::new(err);
-
-                let mut pattern_errs = pattern_descriptors
-                    .into_keys()
-                    .map(|vin| (vin, Err(CorgiError::Shared(Arc::clone(&shared_err)))))
-                    .collect::<HashMap<_, _>>();
-
-                pattern_errs.extend(
-                    invalid_structures
-                        .into_iter()
-                        .map(|(vin, err)| (vin, Err(err))),
-                );
-                return pattern_errs;
-            }
-        };
-
-        let mut vehicle_infos = pattern_descriptors
-            .into_iter()
-            .map(|(vin, desc)| {
-                if let Some(pattern) = patterns.remove(&desc)
-                    && let Some(wmi_info) =
-                        wmi_infos.iter().find(|wmi| wmi.code == desc.wmi).cloned()
-                {
-                    let vehicle_info = extract_vehicle_info(wmi_info, desc.model_year, pattern);
-                    return (vin, Ok(vehicle_info));
-                }
-
-                (
-                    vin.clone(),
-                    Err(CorgiError::VinDecoder(
-                        vin,
-                        VinDecoderError::Unexpected { message: "Could not find pattern descriptor in patterns map or wmi code in wmi infos".to_string() },
-                    )),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        vehicle_infos.extend(
-            invalid_structures
-                .into_iter()
-                .map(|(vin, err)| (vin, Err(err))),
-        );
-        vehicle_infos
     }
 }
 
@@ -212,7 +82,7 @@ pub mod extractors {
 
     use chrono::Datelike;
 
-    use crate::{CorgiError, decoder::VinDecoderError, pattern::PatternMatch, types::WMIInfo};
+    use crate::{CorgiError, decoder::VinDecoderError, pattern::PatternMatch};
 
     // Canonical VIN character sequence for a 30-year block (1980-2009 or 2010-2039)
     static MODEL_YEAR_CODES: &[char] = &[
@@ -375,12 +245,12 @@ pub mod extractors {
     }
 
     pub fn extract_vehicle_info(
-        wmi_info: WMIInfo,
+        make: String,
         model_year: i32,
         patterns: Vec<PatternMatch>,
     ) -> VehicleInfo {
         let mut vehicle_info = VehicleInfo {
-            make: wmi_info.make,
+            make,
             model: None,
             year: model_year,
             series: None,
@@ -392,7 +262,7 @@ pub mod extractors {
             transmission: None,
             doors: None,
             gvwr: None,
-            manufacturer: Some(wmi_info.manufacturer),
+            manufacturer: None,
         };
 
         //
@@ -402,20 +272,20 @@ pub mod extractors {
         let mut secondary_fuel_type = None;
         patterns
             .into_iter()
-            .for_each(|pattern| match pattern.element.as_str() {
-                "Make" => vehicle_info.make = pattern.resolved,
-                "Model" => vehicle_info.model = Some(pattern.resolved),
-                "Series" => vehicle_info.series = Some(pattern.resolved),
-                "Trim" | "Trim Level" => vehicle_info.trim = Some(pattern.resolved),
-                "Body Class" | "Body Style" => {
-                    vehicle_info.body_style = Some(extract_body_style(&pattern.resolved))
+            .for_each(|pattern| match pattern.lookup.element_code.as_str() {
+                "Make" => vehicle_info.make = pattern.lookup.resolved,
+                "Model" => vehicle_info.model = Some(pattern.lookup.resolved),
+                "Series" => vehicle_info.series = Some(pattern.lookup.resolved),
+                "Trim" | "TrimLevel" => vehicle_info.trim = Some(pattern.lookup.resolved),
+                "BodyClass" | "BodyStyle" => {
+                    vehicle_info.body_style = Some(extract_body_style(&pattern.lookup.resolved))
                 }
-                "Drive Type" => vehicle_info.drive_type = Some(pattern.resolved),
-                "Fuel Type - Primary" => primary_fuel_type = Some(pattern.resolved),
-                "Fuel Type - Secondary" => secondary_fuel_type = Some(pattern.resolved),
-                "Transmission" => vehicle_info.transmission = Some(pattern.resolved),
-                "Doors" => vehicle_info.doors = pattern.resolved.parse::<i32>().ok(),
-                "Gross Vehicle Weight Rating From" => vehicle_info.gvwr = Some(pattern.resolved),
+                "DriveType" => vehicle_info.drive_type = Some(pattern.lookup.resolved),
+                "FuelTypePrimary" => primary_fuel_type = Some(pattern.lookup.resolved),
+                "FuelTypeSecondary" => secondary_fuel_type = Some(pattern.lookup.resolved),
+                "Transmission" => vehicle_info.transmission = Some(pattern.lookup.resolved),
+                "Doors" => vehicle_info.doors = pattern.lookup.resolved.parse::<i32>().ok(),
+                "GVWR" => vehicle_info.gvwr = Some(pattern.lookup.resolved),
                 _ => {}
             });
 
@@ -794,12 +664,15 @@ pub mod validators {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "parallel")]
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
     use super::*;
 
-    #[tokio::test]
-    async fn test_decoder_simple() -> Result<(), CorgiError> {
-        let decoder = VinDecoder::new_with_default_db().await;
-        let info = decoder.decode("2FTEF14H8TCA73155".to_string()).await?;
+    #[test]
+    fn test_decoder_simple() -> Result<(), CorgiError> {
+        let decoder = VinDecoder::new();
+        let info = decoder.decode(&"2FTEF14H8TCA73155".to_string())?;
         assert_eq!(info.make, "Ford".to_string());
         assert_eq!(info.model, Some("F-150".to_string()));
         assert_eq!(info.year, 1996);
@@ -807,9 +680,9 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn test_decoder_simple_batch() {
-        let decoder = VinDecoder::new_with_default_db().await;
+    #[test]
+    fn test_decoder_simple_batch() {
+        let decoder = VinDecoder::new();
         let vins = vec![
             "KM8K2CAB4PU001140".to_string(),
             "5N1AT2MT9LC784186".to_string(),
@@ -818,14 +691,17 @@ mod tests {
         ];
 
         let start = std::time::Instant::now();
-        let _vi = decoder.batch_decode(vins).await;
+        vins.into_iter().for_each(|v| {
+            let _ = decoder.decode(&v);
+        });
         let elapsed = start.elapsed();
         println!("{}", elapsed.as_millis())
     }
 
-    #[tokio::test]
-    async fn test_decoder_many_batch() {
-        let decoder = VinDecoder::new_with_default_db().await;
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn test_decoder_many_batch() {
+        let decoder = VinDecoder::new();
         let vins = vec![
             "WA1LAAF77HD021575".to_string(),
             "4T1BF1FK8HU640530".to_string(),
@@ -1499,11 +1375,16 @@ mod tests {
             "1N4AL3AP5GC286936".to_string(),
             "5FNRL6H70JB022604".to_string(),
         ];
+        let chunked = vins.chunks(48).collect::<Vec<_>>();
 
         let start = std::time::Instant::now();
-        let vi = decoder.batch_decode(vins).await;
+        chunked.into_par_iter().for_each(|v| {
+            v.into_iter().for_each(|vv| {
+                let res = decoder.decode(vv);
+                // println!("{vv}: {res:#?}")
+            });
+        });
         let elapsed = start.elapsed();
-        println!("{vi:#?}");
         println!("{}", elapsed.as_millis())
     }
 }

@@ -1,18 +1,17 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
+use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "parallel")]
+use rayon::{
+    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelBridge, ParallelIterator},
+    slice::ParallelSliceMut,
 };
 
-use futures::StreamExt;
+#[cfg(feature = "parallel")]
+use crate::RAYON_CHUNK_SIZE;
 
-use crate::{
-    CorgiError,
-    db::Db,
-    types::{
-        LookupId, PatternQuery, PatternType, RawPattern, ResolvedPattern, SchemaQuery, TableName,
-    },
-};
+use crate::{Lookup, SchemaId, maps::FstRkyvMap};
 
+#[allow(dead_code)]
 static LOOKUP_TABLES: &[&str] = &[
     "DriveType",
     "EngineModel",
@@ -41,410 +40,367 @@ static LOOKUP_TABLES: &[&str] = &[
 ];
 
 pub struct PatternMatcher {
-    db: Arc<Db>,
+    wmi_schema_id_map: FstRkyvMap<SchemaId>,
+    schema_id_lookup_map: FstRkyvMap<Lookup>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
-pub struct PatternDescriptor {
-    pub wmi: String,
+pub struct MatchQuery<'a> {
+    pub wmi: &'a str,
     pub model_year: i32,
-    pub vds: String,
-    pub vis: String,
+    pub vds: &'a str,
+    pub vis: &'a str,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PatternMatch {
-    pub element: String,
-    pub element_code: String,
-    pub attribute_id: String,
-    pub resolved: String,
+    pub lookup: Lookup,
+    pub schema_id: SchemaId,
     pub confidence: f64,
     pub positions: Vec<usize>,
-    pub schema_name: String,
-    pub metadata: Option<Metadata>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Metadata {
-    pub lookup_table_name: Option<String>,
-    pub group_name: Option<String>,
-    pub element_weight: Option<i32>,
     pub pattern_type: PatternType,
-    pub raw_pattern: String,
-    pub match_details: Option<MatchDetails>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct MatchDetails {
-    pub exact_matches: Option<i32>,
-    pub wildcard_matches: Option<i32>,
-    pub total_positions: Option<i32>,
+pub enum PatternType {
+    VDS,
+    VIS,
+}
+
+struct LookupWithSchemaId {
+    schema: SchemaId,
+    lookup: Lookup,
 }
 
 impl PatternMatcher {
-    pub fn new(db: Arc<Db>) -> Self {
-        Self { db }
-    }
-
-    pub async fn new_with_default_db() -> Self {
-        let db = Db::new().await;
-        let db = Arc::new(db);
-        Self { db }
-    }
-
-    pub async fn matches(
-        &self,
-        pattern_descriptors: Vec<PatternDescriptor>,
-    ) -> Result<HashMap<PatternDescriptor, Vec<PatternMatch>>, CorgiError> {
-        //
-        // Get raw matches
-        //
-        let raw_matches = self.raw_matches(pattern_descriptors).await?;
-
-        //
-        // Map raw matches to cleaner format, filter by confidence, group by element name and dedup
-        //
-        let matches = raw_matches
-            .into_iter()
-            .map(|(descriptor, matches)| {
-                (
-                    descriptor,
-                    matches
-                        .into_iter()
-                        //
-                        // Filter by confidence
-                        //
-                        .filter(|m| {
-                            // More lenient threshold for plant patterns
-                            if m.pattern.element_name.to_lowercase().contains("plant") {
-                                return m.confidence > 0.3;
-                            }
-                            m.confidence > 0.5
-                        })
-                        //
-                        // Map to cleaner format
-                        //
-                        .map(|m| m.into())
-                        //
-                        // Group by pattern name
-                        //
-                        .fold(
-                            HashMap::new(),
-                            |mut accu: HashMap<String, Vec<PatternMatch>>, next: PatternMatch| {
-                                if let Some(patterns) = accu.get_mut(&next.element) {
-                                    patterns.push(next);
-                                } else {
-                                    accu.insert(next.element.clone(), vec![next]);
-                                }
-
-                                accu
-                            },
-                        )
-                        .into_values()
-                        .map(|mut patterns| {
-                            //
-                            // Sort patterns by weight then by confidence
-                            //
-                            patterns.sort_by(|pat1, pat2| {
-                                let w1 = pat1
-                                    .metadata
-                                    .as_ref()
-                                    .map(|met| met.element_weight)
-                                    .flatten()
-                                    .unwrap_or(0);
-                                let w2 = pat2
-                                    .metadata
-                                    .as_ref()
-                                    .map(|met| met.element_weight)
-                                    .flatten()
-                                    .unwrap_or(0);
-
-                                w2.cmp(&w1)
-                                    .then(pat2.confidence.total_cmp(&pat1.confidence))
-                            });
-
-                            //
-                            // Deduplicate patterns
-                            //
-                            #[derive(Hash, PartialEq, Eq)]
-                            struct PatternKey {
-                                resolved: String,
-                                positions: Vec<usize>,
-                                schema_name: String,
-                            }
-
-                            let mut seen = HashSet::new();
-                            patterns.retain(|pat| {
-                                let key = PatternKey {
-                                    resolved: pat.resolved.clone(),
-                                    positions: pat.positions.clone(),
-                                    schema_name: pat.schema_name.clone(),
-                                };
-                                seen.insert(key)
-                            });
-
-                            patterns
-                        })
-                        //
-                        // Remove groupping by element name
-                        //
-                        .flatten()
-                        .collect::<Vec<_>>(),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        Ok(matches)
-    }
-
-    pub async fn raw_matches(
-        &self,
-        pattern_descriptors: Vec<PatternDescriptor>,
-    ) -> Result<HashMap<PatternDescriptor, Vec<RawPattern>>, CorgiError> {
-        //
-        // Get schemas for all wmi, model year pairs
-        //
-        let schemas = self
-            .db
-            .get_schemas(
-                pattern_descriptors
-                    .iter()
-                    .map(|d| SchemaQuery {
-                        wmi: d.wmi.to_string(),
-                        model_year: d.model_year,
-                        vds: d.vds.to_string(),
-                        vis: d.vis.to_string(),
-                    })
-                    .collect(),
-            )
-            .await?;
-
-        //
-        // Get all patterns for all schema ids
-        //
-        let mut patterns = self
-            .db
-            .get_patterns(
-                schemas
-                    .into_iter()
-                    .map(|s| PatternQuery {
-                        schema_id: s.schema_id,
-                        wmi: s.wmi,
-                        model_year: s.model_year,
-                        vds: s.vds,
-                        vis: s.vis,
-                    })
-                    .collect(),
-            )
-            .await?;
-
-        //
-        // Filter patterns based on lookup table classes
-        //
-        patterns = patterns
-            .into_iter()
-            .filter(|p| {
-                if let Some(lookup_table) = &p.lookup_table {
-                    if !LOOKUP_TABLES.contains(&lookup_table.as_str())
-                        || lookup_table.contains("vNCSA")
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            })
-            .collect();
-
-        //
-        // Get lookup names for all patterns that have lookup table
-        //
-        let mut lookup_map = HashMap::<TableName, Vec<LookupId>>::new();
-        for pat in &patterns {
-            if let Some(lookup_table) = &pat.lookup_table {
-                if let Some(attrs) = lookup_map.get_mut(lookup_table) {
-                    attrs.push(pat.attribute_id.clone());
-                } else {
-                    lookup_map.insert(lookup_table.clone(), vec![pat.attribute_id.clone()]);
-                }
-            }
+    pub fn new() -> Self {
+        Self {
+            wmi_schema_id_map: FstRkyvMap::new(),
+            schema_id_lookup_map: FstRkyvMap::new(),
         }
+    }
 
-        let chunked_lookup_map = chunk_map(&lookup_map, 32_766);
-        let lookup = futures::stream::iter(chunked_lookup_map)
-            .then(|lm| self.db.get_lookup(lm))
-            .collect::<Vec<_>>()
-            .await
+    pub fn matches(&self, query: &MatchQuery) -> Vec<PatternMatch> {
+        #[cfg(not(feature = "parallel"))]
+        let groupped = self
+            .raw_matches(&query)
             .into_iter()
-            .map(|r| r.unwrap())
-            .flatten()
-            .collect::<HashMap<_, _>>();
-
-        //
-        // Apply resolved lookup names to patterns
-        //
-        let resolved_patterns = patterns
-            .into_iter()
-            .map(|pat| {
-                let resolved = if let Some(lookup_table) = &pat.lookup_table
-                    && let Some(lookup_name) = lookup
-                        .get(lookup_table)
-                        .and_then(|inner| inner.get(&pat.attribute_id))
-                {
-                    lookup_name.clone()
-                } else {
-                    pat.attribute_id.clone()
-                };
-
-                ResolvedPattern {
-                    pattern: pat,
-                    resolved: resolved,
+            //
+            // Filter by confidence
+            //
+            .filter(|m| {
+                // More lenient threshold for plant patterns
+                if m.lookup.element_code.to_lowercase().contains("plant") {
+                    return m.confidence > 0.3;
                 }
+                m.confidence > 0.5
+            })
+            //
+            // Group by pattern name
+            //
+            .fold(
+                HashMap::new(),
+                |mut accu: HashMap<String, Vec<PatternMatch>>, next: PatternMatch| {
+                    if let Some(patterns) = accu.get_mut(&next.lookup.element_code) {
+                        patterns.push(next);
+                    } else {
+                        accu.insert(next.lookup.element_code.clone(), vec![next]);
+                    }
+
+                    accu
+                },
+            );
+
+        #[cfg(feature = "parallel")]
+        let groupped = self
+            .raw_matches(&query)
+            .into_par_iter()
+            //
+            // Filter by confidence
+            //
+            .filter(|m| {
+                // More lenient threshold for plant patterns
+                if m.lookup.element_code.to_lowercase().contains("plant") {
+                    return m.confidence > 0.3;
+                }
+                m.confidence > 0.5
+            })
+            //
+            // Group by pattern name
+            //
+            .fold(
+                || HashMap::new(),
+                |mut accu: HashMap<String, Vec<PatternMatch>>, next: PatternMatch| {
+                    if let Some(patterns) = accu.get_mut(&next.lookup.element_code) {
+                        patterns.push(next);
+                    } else {
+                        accu.insert(next.lookup.element_code.clone(), vec![next]);
+                    }
+
+                    accu
+                },
+            )
+            .reduce(
+                || HashMap::new(),
+                |mut a, b| {
+                    for (k, mut v) in b {
+                        a.entry(k).or_default().append(&mut v);
+                    }
+                    a
+                },
+            );
+
+        let matches = groupped
+            .into_values()
+            .map(|mut patterns| {
+                //
+                // Sort patterns by weight then by confidence
+                //
+                #[cfg(not(feature = "parallel"))]
+                patterns.sort_by(|pat1, pat2| {
+                    let w1 = pat1.lookup.element_weight.unwrap_or(0);
+                    let w2 = pat2.lookup.element_weight.unwrap_or(0);
+
+                    w2.cmp(&w1)
+                        .then(pat2.confidence.total_cmp(&pat1.confidence))
+                });
+
+                #[cfg(feature = "parallel")]
+                patterns.par_sort_by(|pat1, pat2| {
+                    let w1 = pat1.lookup.element_weight.unwrap_or(0);
+                    let w2 = pat2.lookup.element_weight.unwrap_or(0);
+
+                    w2.cmp(&w1)
+                        .then(pat2.confidence.total_cmp(&pat1.confidence))
+                });
+
+                //
+                // Deduplicate patterns
+                //
+                #[derive(Hash, PartialEq, Eq)]
+                struct PatternKey {
+                    resolved: String,
+                    positions: Vec<usize>,
+                    schema_name: String,
+                }
+
+                let mut seen = HashSet::new();
+                patterns.retain(|pat| {
+                    let key = PatternKey {
+                        resolved: pat.lookup.resolved.clone(),
+                        positions: pat.positions.clone(),
+                        schema_name: pat.schema_id.schema_id.clone(),
+                    };
+                    seen.insert(key)
+                });
+
+                patterns
+            })
+            //
+            // Remove groupping by element name
+            //
+            .flatten()
+            .collect::<Vec<_>>();
+
+        return matches;
+    }
+
+    pub fn raw_matches(&self, query: &MatchQuery) -> Vec<PatternMatch> {
+        let schemas = if let Some(schemas) = self.wmi_schema_id_map.get(&query.wmi) {
+            schemas
+        } else {
+            return Vec::new();
+        };
+
+        #[cfg(not(feature = "parallel"))]
+        let mut patterns = schemas
+            .into_iter()
+            .filter_map(|schema| {
+                self.schema_id_lookup_map.get(&schema.schema_id).map(|v| {
+                    v.into_iter().map(move |lookup| LookupWithSchemaId {
+                        schema: schema.clone(),
+                        lookup,
+                    })
+                })
+            })
+            .flatten()
+            .collect::<Vec<LookupWithSchemaId>>();
+
+        #[cfg(feature = "parallel")]
+        let mut patterns = schemas
+            .chunks(RAYON_CHUNK_SIZE)
+            .par_bridge()
+            .flat_map_iter(|chunk| {
+                chunk
+                    .into_iter()
+                    .filter_map(|schema| {
+                        self.schema_id_lookup_map.get(&schema.schema_id).map(|v| {
+                            v.into_iter().map(move |lookup| LookupWithSchemaId {
+                                schema: schema.clone(),
+                                lookup,
+                            })
+                        })
+                    })
+                    .flatten()
+            })
+            .collect::<Vec<LookupWithSchemaId>>();
+
+        #[cfg(not(feature = "parallel"))]
+        patterns.sort_by(|res1, res2| {
+            res2.lookup
+                .element_weight
+                .cmp(&res1.lookup.element_weight) // Descending
+                .then_with(|| res1.lookup.pattern.cmp(&res2.lookup.pattern)) // Ascending
+        });
+
+        #[cfg(feature = "parallel")]
+        patterns.par_sort_by(|res1, res2| {
+            res2.lookup
+                .element_weight
+                .cmp(&res1.lookup.element_weight) // Descending
+                .then_with(|| res1.lookup.pattern.cmp(&res2.lookup.pattern)) // Ascending
+        });
+
+        //
+        // Find the most specific schema by looking at model patterns
+        //
+        #[cfg(not(feature = "parallel"))]
+        let mut model_patterns = patterns
+            .iter()
+            .filter_map(|pat| {
+                if pat.lookup.element_code == "Model" {
+                    return Some((
+                        calculate_confidence(
+                            &pat.lookup.pattern,
+                            &format!("{}{}", &query.vds, &query.vis),
+                        ),
+                        pat,
+                    ));
+                }
+                None
             })
             .collect::<Vec<_>>();
 
-        //
-        // Group by resolved patterns to its original descriptors
-        //
-        let mut descriptor_patterns: HashMap<PatternDescriptor, Vec<ResolvedPattern>> =
-            HashMap::new();
-        for pat in resolved_patterns {
-            let descriptor = PatternDescriptor {
-                wmi: pat.pattern.wmi.clone(),
-                model_year: pat.pattern.model_year,
-                vds: pat.pattern.vds.clone(),
-                vis: pat.pattern.vis.clone(),
-            };
-
-            if let Some(pats) = descriptor_patterns.get_mut(&descriptor) {
-                pats.push(pat);
-            } else {
-                descriptor_patterns.insert(descriptor, vec![pat]);
-            }
-        }
-
-        //
-        // Sort descriptor patterns by weight or pattern code
-        //
-        descriptor_patterns
-            .values_mut()
-            .for_each(|resolved_patterns| {
-                resolved_patterns.sort_by(|res1, res2| {
-                    res2.pattern
-                        .element_weight
-                        .cmp(&res1.pattern.element_weight) // Descending
-                        .then_with(|| res1.pattern.pattern.cmp(&res2.pattern.pattern)) // Ascending
-                })
-            });
-
-        let descriptor_patterns = descriptor_patterns
-            .into_iter()
-            .map(|(descriptor, resolved_patterns)| {
-                //
-                // Find the most specific schema by looking at model patterns
-                //
-                let mut model_patterns = resolved_patterns
-                    .iter()
-                    .filter(|pat| pat.pattern.element_name == "Model")
-                    .map(|pat| {
-                        (
+        #[cfg(feature = "parallel")]
+        let mut model_patterns = patterns
+            .chunks(RAYON_CHUNK_SIZE)
+            .par_bridge()
+            .flat_map_iter(|chunk| {
+                chunk.iter().filter_map(|pat| {
+                    if pat.lookup.element_code == "Model" {
+                        return Some((
                             calculate_confidence(
-                                &pat.pattern.pattern,
-                                &format!("{}{}", &pat.pattern.vds, &pat.pattern.vis),
+                                &pat.lookup.pattern,
+                                &format!("{}{}", &query.vds, &query.vis),
                             ),
                             pat,
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                model_patterns.sort_by(|(co1, _), (co2, _)| co2.total_cmp(co1)); // Desc
-
-                //
-                // Get the most relevant schema name
-                //
-                let primary_schema = model_patterns
-                    .get(0)
-                    .map(|mp| mp.1.pattern.schema_name.clone());
-
-                //
-                // Format descriptor patterns
-                //
-                let resolved_patterns = resolved_patterns
-                    .into_iter()
-                    .map(|resolved_pattern| {
-                        let is_vis_pattern = resolved_pattern.pattern.pattern.contains('|');
-                        let pattern_type = if is_vis_pattern {
-                            PatternType::VIS
-                        } else {
-                            PatternType::VDS
-                        };
-
-                        //
-                        // Calculate base confidence
-                        //
-                        let base_confidence = if is_vis_pattern {
-                            calculate_confidence(
-                                &resolved_pattern.pattern.pattern,
-                                &resolved_pattern.pattern.vis.get(1..2).unwrap_or(""),
-                            )
-                        } else {
-                            calculate_confidence(
-                                &resolved_pattern.pattern.pattern,
-                                &format!(
-                                    "{}{}",
-                                    &resolved_pattern.pattern.vds, &resolved_pattern.pattern.vis
-                                ),
-                            )
-                        };
-
-                        //
-                        // Adjust confidence based on schema match for plant codes
-                        //
-                        let mut confidence = base_confidence;
-                        if resolved_pattern
-                            .pattern
-                            .element_name
-                            .to_lowercase()
-                            .contains("plant")
-                        {
-                            if let Some(ps) = &primary_schema {
-                                confidence = if resolved_pattern.pattern.schema_name == *ps {
-                                    base_confidence
-                                } else {
-                                    0.
-                                }
-                            }
-                        }
-
-                        //
-                        // Calculate correct positions based on pattern type
-                        //
-                        let mut positions = Vec::new();
-                        let actual_pattern = resolved_pattern
-                            .pattern
-                            .pattern
-                            .split('|')
-                            .nth(0)
-                            .unwrap_or(&resolved_pattern.pattern.pattern);
-                        let start_pos = if is_vis_pattern { 9 } else { 3 };
-                        actual_pattern.chars().enumerate().for_each(|(idx, c)| {
-                            if c != '|' {
-                                positions.push(start_pos + idx);
-                            }
-                        });
-
-                        RawPattern {
-                            pattern: resolved_pattern.pattern,
-                            resolved: resolved_pattern.resolved,
-                            confidence,
-                            positions,
-                            pattern_type,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                (descriptor, resolved_patterns)
+                        ));
+                    }
+                    None
+                })
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<Vec<_>>();
 
-        Ok(descriptor_patterns)
+        #[cfg(not(feature = "parallel"))]
+        model_patterns.sort_by(|(co1, _), (co2, _)| co2.total_cmp(co1)); // Desc
+
+        #[cfg(feature = "parallel")]
+        model_patterns.par_sort_by(|(co1, _), (co2, _)| co2.total_cmp(co1)); // Desc
+
+        //
+        // Get the most relevant schema name
+        //
+        let primary_schema = model_patterns.get(0).map(|mp| mp.1.schema.clone());
+        drop(model_patterns);
+
+        //
+        // Format patterns
+        //
+        #[cfg(not(feature = "parallel"))]
+        let patterns = patterns
+            .into_iter()
+            .map(|pattern| create_pattern_match(pattern, &query, primary_schema.as_ref()))
+            .collect();
+
+        #[cfg(feature = "parallel")]
+        let patterns = patterns
+            .into_par_iter()
+            .chunks(RAYON_CHUNK_SIZE)
+            .flat_map_iter(|chunk| {
+                chunk
+                    .into_iter()
+                    .map(|pattern| create_pattern_match(pattern, &query, primary_schema.as_ref()))
+            })
+            .collect();
+
+        patterns
+    }
+}
+
+fn create_pattern_match(
+    pattern: LookupWithSchemaId,
+    match_query: &MatchQuery,
+    primary_schema: Option<&SchemaId>,
+) -> PatternMatch {
+    let is_vis_pattern = pattern.lookup.pattern.contains('|');
+    let pattern_type = if is_vis_pattern {
+        PatternType::VIS
+    } else {
+        PatternType::VDS
+    };
+
+    //
+    // Calculate base confidence
+    //
+    let base_confidence = if is_vis_pattern {
+        calculate_confidence(
+            &pattern.lookup.pattern,
+            &match_query.vis.get(1..2).unwrap_or(""),
+        )
+    } else {
+        calculate_confidence(
+            &pattern.lookup.pattern,
+            &format!("{}{}", &match_query.vds, &match_query.vis),
+        )
+    };
+
+    //
+    // Adjust confidence based on schema match for plant codes
+    //
+    let mut confidence = base_confidence;
+    if pattern.lookup.element_code.to_lowercase().contains("plant") {
+        if let Some(ps) = primary_schema {
+            confidence = if pattern.schema == *ps {
+                base_confidence
+            } else {
+                0.
+            }
+        }
+    }
+
+    //
+    // Calculate correct positions based on pattern type
+    //
+    let mut positions = Vec::new();
+    let actual_pattern = pattern
+        .lookup
+        .pattern
+        .split('|')
+        .nth(0)
+        .unwrap_or(&pattern.lookup.pattern);
+    let start_pos = if is_vis_pattern { 9 } else { 3 };
+    actual_pattern.chars().enumerate().for_each(|(idx, c)| {
+        if c != '|' {
+            positions.push(start_pos + idx);
+        }
+    });
+
+    PatternMatch {
+        lookup: pattern.lookup,
+        schema_id: pattern.schema,
+        confidence,
+        positions,
+        pattern_type,
     }
 }
 
@@ -694,118 +650,59 @@ pub fn is_char_in_range(ch: char, pattern: &str) -> bool {
     false
 }
 
-fn chunk_map(
-    input: &HashMap<String, Vec<String>>,
-    chunk_size: usize,
-) -> Vec<HashMap<String, Vec<String>>> {
-    let mut chunks = Vec::new();
-    let mut current_chunk = HashMap::new();
-    let mut current_count = 0;
-
-    for (key, ids) in input {
-        let mut start = 0;
-        while start < ids.len() {
-            let remaining_space = chunk_size - current_count;
-            let end = (start + remaining_space).min(ids.len());
-            let slice = ids[start..end].to_vec();
-
-            current_chunk
-                .entry(key.clone())
-                .or_insert_with(Vec::new)
-                .extend(slice);
-
-            current_count += end - start;
-            start = end;
-
-            if current_count >= chunk_size {
-                chunks.push(current_chunk);
-                current_chunk = HashMap::new();
-                current_count = 0;
-            }
-        }
-    }
-
-    if !current_chunk.is_empty() {
-        chunks.push(current_chunk);
-    }
-
-    chunks
-}
-
-impl From<RawPattern> for PatternMatch {
-    fn from(value: RawPattern) -> Self {
-        Self {
-            element: value.pattern.element_name,
-            element_code: value.pattern.element_code,
-            attribute_id: value.pattern.attribute_id,
-            resolved: value.resolved,
-            confidence: value.confidence,
-            positions: value.positions,
-            schema_name: value.pattern.schema_name,
-            metadata: Some(Metadata {
-                lookup_table_name: value.pattern.lookup_table,
-                group_name: value.pattern.group_name,
-                element_weight: value.pattern.element_weight,
-                pattern_type: value.pattern_type,
-                raw_pattern: value.pattern.pattern,
-                match_details: None,
-            }),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_pattern_raw() {
-        let matcher = PatternMatcher::new_with_default_db().await;
-        let _v = vec![
-            PatternDescriptor {
-                wmi: "2C3".to_string(),
-                vds: "CDXBG1".to_string(),
-                vis: "FH832587".to_string(),
-                model_year: 2015,
-            },
-            PatternDescriptor {
-                wmi: "SCB".to_string(),
-                vds: "BR9ZA8".to_string(),
-                vis: "DC079455".to_string(),
-                model_year: 2013,
-            },
-            PatternDescriptor {
-                wmi: "5NP".to_string(),
-                vds: "D74LF7".to_string(),
-                vis: "HH126052".to_string(),
-                model_year: 2017,
-            },
-            PatternDescriptor {
-                wmi: "1HD".to_string(),
-                vds: "1KHM11".to_string(),
-                vis: "CB675783".to_string(),
-                model_year: 2012,
-            },
-            PatternDescriptor {
-                wmi: "3KP".to_string(),
-                vds: "F24AD6".to_string(),
-                vis: "PE638817".to_string(),
-                model_year: 2023,
-            },
-            PatternDescriptor {
-                wmi: "1HG".to_string(),
-                vds: "CP2673".to_string(),
-                vis: "9A060971".to_string(),
-                model_year: 2009,
-            },
-        ];
-        let v = vec![PatternDescriptor {
-            wmi: "1HG".to_string(),
-            vds: "CP2673".to_string(),
-            vis: "9A060971".to_string(),
+    #[test]
+    fn test_pattern_raw() {
+        let matcher = PatternMatcher::new();
+        // let _v = vec![
+        //     MatchQuery {
+        //         wmi: "2C3".to_string(),
+        //         vds: "CDXBG1".to_string(),
+        //         vis: "FH832587".to_string(),
+        //         model_year: 2015,
+        //     },
+        //     MatchQuery {
+        //         wmi: "SCB".to_string(),
+        //         vds: "BR9ZA8".to_string(),
+        //         vis: "DC079455".to_string(),
+        //         model_year: 2013,
+        //     },
+        //     MatchQuery {
+        //         wmi: "5NP".to_string(),
+        //         vds: "D74LF7".to_string(),
+        //         vis: "HH126052".to_string(),
+        //         model_year: 2017,
+        //     },
+        //     MatchQuery {
+        //         wmi: "1HD".to_string(),
+        //         vds: "1KHM11".to_string(),
+        //         vis: "CB675783".to_string(),
+        //         model_year: 2012,
+        //     },
+        //     MatchQuery {
+        //         wmi: "3KP".to_string(),
+        //         vds: "F24AD6".to_string(),
+        //         vis: "PE638817".to_string(),
+        //         model_year: 2023,
+        //     },
+        //     MatchQuery {
+        //         wmi: "1HG".to_string(),
+        //         vds: "CP2673".to_string(),
+        //         vis: "9A060971".to_string(),
+        //         model_year: 2009,
+        //     },
+        // ];
+        let v = vec![MatchQuery {
+            wmi: "1HG",
+            vds: "CP2673",
+            vis: "9A060971",
             model_year: 2009,
         }];
-        matcher.matches(v).await.unwrap();
+        let r = matcher.matches(&v[0]);
+        println!("{r:#?}")
     }
 }

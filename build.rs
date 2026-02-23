@@ -1,93 +1,127 @@
-use std::collections::HashMap;
-use std::io::Write;
+use std::io::{BufWriter, Write};
+use std::str::FromStr;
 use std::{fs::File, path::Path};
 
-use flate2::read::GzDecoder;
+use fst::MapBuilder;
 
-static DB_ARCHIVE: &str = "https://corgi.cardog.io/vpic.lite.db.gz";
-static DB_FILE: &str = ".corgi-rs-cache/vpic.lite.db";
+use build_shared::{Lookup, UntilNextKey};
+use rkyv::rancor::Error;
+
+use crate::build_shared::{Make, RkyvSerialize, Saveable, SchemaId};
+
+#[path = "src/build_shared.rs"]
+mod build_shared;
 
 fn main() {
-    let home_dir = dirs::home_dir().expect("home directory env variable not set");
-    let db_file_path = home_dir.join(DB_FILE);
-
-    if !db_file_path.exists() {
-        if let Some(parent) = db_file_path.parent() {
-            std::fs::create_dir_all(parent).expect("db directory create failure");
-        }
-        let mut file_writer = std::fs::File::create(db_file_path).expect("db file create failure");
-
-        let mut archive_response = ureq::get(DB_ARCHIVE)
-            .call()
-            .expect("db archive download failure");
-        let body_reader = archive_response.body_mut().as_reader();
-
-        let mut gz_decoder = GzDecoder::new(body_reader);
-        std::io::copy(&mut gz_decoder, &mut file_writer).expect("reader writer copy failure");
-    }
-
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR env variable not set");
-    let gen_path = Path::new(&out_dir).join("gen.rs");
-    if !gen_path.exists() {
-        let mut gen_file = File::create(&gen_path).expect("gen file create failure");
-        generate_wmi_make_map(&mut gen_file).expect("gen map failure");
-    }
 
-    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR env variable not set");
-    let gen_path = Path::new(&out_dir).join("gen_wmi_schema_id.rs");
-    if !gen_path.exists() {
-        let mut gen_file = File::create(&gen_path).expect("gen file create failure");
-        generate_wmi_schema_id_map(&mut gen_file).expect("gen map failure");
-    }
+    let lookup_fst_path = Path::new(&out_dir).join(format!("{}.fst", Lookup::base_file_name()));
+    let lookup_values_path = Path::new(&out_dir).join(format!("{}.bin", Lookup::base_file_name()));
+    let lookup_task_handle = if !lookup_fst_path.exists() || !lookup_values_path.exists() {
+        let fst_file = File::create(&lookup_fst_path).expect("fst file create");
+        let values_file = File::create(&lookup_values_path).expect("values file create");
+
+        let handle = std::thread::spawn(|| {
+            generate_fst_map::<Lookup>(
+                &Path::new(&format!("assets/{}.csv", Lookup::base_file_name())),
+                fst_file,
+                values_file,
+            )
+            .expect("generate fst lookup");
+        });
+
+        Some(handle)
+    } else {
+        None
+    };
+
+    let make_fst_path = Path::new(&out_dir).join(format!("{}.fst", Make::base_file_name()));
+    let make_values_path = Path::new(&out_dir).join(format!("{}.bin", Make::base_file_name()));
+    let make_task_handle = if !make_fst_path.exists() || !make_values_path.exists() {
+        let fst_file = File::create(&make_fst_path).expect("fst file create");
+        let values_file = File::create(&make_values_path).expect("values file create");
+
+        let handle = std::thread::spawn(|| {
+            generate_fst_map::<Make>(
+                &Path::new(&format!("assets/{}.csv", Make::base_file_name())),
+                fst_file,
+                values_file,
+            )
+            .expect("generate fst make")
+        });
+
+        Some(handle)
+    } else {
+        None
+    };
+
+    let schema_fst_path = Path::new(&out_dir).join(format!("{}.fst", SchemaId::base_file_name()));
+    let schema_values_path =
+        Path::new(&out_dir).join(format!("{}.bin", SchemaId::base_file_name()));
+    let schema_task_handle = if !schema_fst_path.exists() || !schema_values_path.exists() {
+        let fst_file = File::create(&schema_fst_path).expect("fst file create");
+        let values_file = File::create(&schema_values_path).expect("values file create");
+
+        let handle = std::thread::spawn(|| {
+            generate_fst_map::<SchemaId>(
+                &Path::new(&format!("assets/{}.csv", SchemaId::base_file_name())),
+                fst_file,
+                values_file,
+            )
+            .expect("generate fst schema")
+        });
+
+        Some(handle)
+    } else {
+        None
+    };
+
+    lookup_task_handle.map(|h| h.join().expect("lookup task join"));
+    make_task_handle.map(|h| h.join().expect("make task join"));
+    schema_task_handle.map(|h| h.join().expect("schema task join"));
+
+    println!("cargo:rerun-if-changed=src/build_shared.rs");
 }
 
-fn generate_wmi_make_map(file: &mut File) -> Result<(), std::io::Error> {
-    let wmi_make_csv = include_str!("assets/wmi_make.csv");
-    let wmi_make_inner_map = wmi_make_csv
-        .lines()
-        .skip(1)
-        .map(|line| line.split_once(',').expect("must have comma"))
-        .collect::<HashMap<_, _>>()
-        .into_iter()
-        .map(|(k, v)| format!(r#""{k}" => "{}","#, v.replace('"', "")))
-        .collect::<Vec<_>>()
-        .join("\n");
+fn generate_fst_map<V>(
+    csv_path: &Path,
+    fst_file: File,
+    values_file: File,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    V: RkyvSerialize + FromStr,
+{
+    let csv = std::fs::read_to_string(csv_path)?;
 
-    let wmi_make_map = format!(
-        r#"pub static WMI_MAKE_MAP: phf::Map<&'static str, &'static str> = phf::phf_map!{{{wmi_make_inner_map}}};"#
-    );
-    writeln!(file, "{}", wmi_make_map)?;
-    Ok(())
-}
+    let fst_writer = BufWriter::new(fst_file);
+    let mut fst_builder = MapBuilder::new(fst_writer)?;
 
-fn generate_wmi_schema_id_map(file: &mut File) -> Result<(), std::io::Error> {
-    let wmi_schema_id_csv = include_str!("assets/wmi_schema_id.csv");
+    let mut values_writer = BufWriter::new(values_file);
 
-    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut current_offset = 0 as u64;
 
-    for line in wmi_schema_id_csv.lines().skip(1) {
-        let (k, v) = line.split_once(',').expect("must have comma");
-        map.entry(k.to_string())
-            .or_default()
-            .push(v.replace('"', ""));
+    // Skip header line
+    let mut csv_lines = csv.lines().skip(1).peekable();
+    while let Some((key, values)) = csv_lines.next_key() {
+        let values = values
+            .into_iter()
+            .map(|v| {
+                V::from_str(v)
+                    .map_err(|_| std::io::Error::other("value from str"))
+                    .expect("str parse")
+            })
+            .collect::<Vec<_>>();
+        let bytes = rkyv::to_bytes::<Error>(&values)?;
+        values_writer.write_all(&bytes)?;
+
+        let offset_len_combined = (current_offset << 32) | bytes.len() as u64;
+        fst_builder.insert(key, offset_len_combined)?;
+
+        current_offset += bytes.len() as u64;
     }
 
-    let wmi_schema_id_inner_map = map
-        .into_iter()
-        .map(|(k, values)| {
-            let values = values
-                .into_iter()
-                .map(|v| format!(r#""{v}""#))
-                .collect::<Vec<_>>();
-            let values = values.join(", ");
-            format!(r#""{k}" => &[{}],"#, values)
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+    fst_builder.finish()?;
+    values_writer.flush()?;
 
-    let wmi_schema_id_map = format!(
-        r#"pub static WMI_SCHEMA_ID_MAP: phf::Map<&'static str, &'static [&'static str]> = phf::phf_map!{{{wmi_schema_id_inner_map}}};"#
-    );
-    writeln!(file, "{}", wmi_schema_id_map)?;
     Ok(())
 }

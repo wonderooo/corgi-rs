@@ -1,6 +1,6 @@
 [package]
 name = "corgi-rs"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2024"
 description = "Vehicle VIN decoding library based on NHTSA database for Rust"
 keywords = ["nhtsa", "vin", "vehicles", "decoding"]
@@ -8,17 +8,19 @@ categories = ["automotive", "parsing", "encoding"]
 license = "MIT"
 
 [dependencies]
-sqlx = {version = "0.8.6", features = ["runtime-tokio", "sqlite", "macros"]}
 chrono = "0.4.43"
-dirs = "6.0.0"
-futures = "0.3.32"
-phf = { version = "0.13.1", features = ["macros"] }
+fst = "0.4.7"
+memmap2 = "0.9.10"
+rkyv = "0.8.15"
+rayon = {version = "1.11.0", optional = true }
 
 [build-dependencies]
-ureq = "3.2.0"
-flate2 = "1.1.9"
-dirs = "6.0.0"
-phf_codegen = "0.13.1"
+fst = "0.4.7"
+rkyv = "0.8.15"
 
-[dev-dependencies]
-tokio = {version = "1.49.0", features = ["full"]}
+[features]
+default = ["parallel"]
+parallel = ["rayon"]
+
+[profile.release]
+opt-level = 3
