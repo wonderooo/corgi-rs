@@ -13,7 +13,10 @@ use crate::build_shared::{Make, RkyvSerialize, Saveable, SchemaId};
 mod build_shared;
 
 fn main() {
-    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR env variable not set");
+    let out_dir = dirs::home_dir()
+        .expect("HOME env variable not set")
+        .join(".corgi-rs-cache");
+    std::fs::create_dir_all(&out_dir).expect("dir create");
 
     let lookup_fst_path = Path::new(&out_dir).join(format!("{}.fst", Lookup::base_file_name()));
     let lookup_values_path = Path::new(&out_dir).join(format!("{}.bin", Lookup::base_file_name()));

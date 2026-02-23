@@ -25,7 +25,9 @@ where
     where
         R: Saveable<'a>,
     {
-        let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
+        let out_dir = dirs::home_dir()
+            .expect("HOME env variable not set")
+            .join(".corgi-rs-cache");
 
         let values_path = Path::new(&out_dir).join(format!("{}.bin", R::base_file_name()));
         let values_file = File::open(&values_path).expect("values file open");
