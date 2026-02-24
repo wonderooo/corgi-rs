@@ -1,6 +1,13 @@
+use std::collections::HashMap;
+
+#[cfg(feature = "parallel")]
+use crate::RAYON_CHUNK_SIZE;
+#[cfg(feature = "parallel")]
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+
 pub use crate::decoder::extractors::{BodyStyle, VehicleInfo};
 use crate::{
-    CorgiError, Make,
+    CorgiError, Make, VIN,
     decoder::{
         extractors::{
             ModelYearErrorCode, WmiErrorCode, extract_model_year, extract_vds_vis,
@@ -50,7 +57,7 @@ impl VinDecoder {
         }
     }
 
-    pub fn decode(&self, vin: &String) -> Result<VehicleInfo, CorgiError> {
+    pub fn decode(&self, vin: &VIN) -> Result<VehicleInfo, CorgiError> {
         validate_vin_structure(&vin)?;
         validate_check_digit(&vin)?;
 
@@ -74,6 +81,26 @@ impl VinDecoder {
 
         let vehicle_info = extract_vehicle_info(make, model_year as i32, patterns);
         Ok(vehicle_info)
+    }
+
+    pub fn decode_batch<'inp>(
+        &self,
+        vins: &'inp Vec<VIN>,
+    ) -> HashMap<&'inp VIN, Result<VehicleInfo, CorgiError>> {
+        #[cfg(not(feature = "parallel"))]
+        let decoded = vins
+            .into_iter()
+            .map(|vin| (vin, self.decode(&vin)))
+            .collect();
+
+        #[cfg(feature = "parallel")]
+        let decoded = vins
+            .into_par_iter()
+            .chunks(RAYON_CHUNK_SIZE)
+            .flat_map_iter(|chunk| chunk.into_iter().map(|vin| (vin, self.decode(&vin))))
+            .collect();
+
+        decoded
     }
 }
 
@@ -664,9 +691,6 @@ pub mod validators {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "parallel")]
-    use rayon::iter::{IntoParallelIterator, ParallelIterator};
-
     use super::*;
 
     #[test]
@@ -1375,15 +1399,9 @@ mod tests {
             "1N4AL3AP5GC286936".to_string(),
             "5FNRL6H70JB022604".to_string(),
         ];
-        let chunked = vins.chunks(48).collect::<Vec<_>>();
 
         let start = std::time::Instant::now();
-        chunked.into_par_iter().for_each(|v| {
-            v.into_iter().for_each(|vv| {
-                let res = decoder.decode(vv);
-                // println!("{vv}: {res:#?}")
-            });
-        });
+        decoder.decode_batch(&vins);
         let elapsed = start.elapsed();
         println!("{}", elapsed.as_millis())
     }

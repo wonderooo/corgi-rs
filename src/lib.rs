@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::decoder::VinDecoderError;
 pub use build_shared::*;
 
@@ -15,6 +13,5 @@ pub type VIN = String;
 
 #[derive(Debug)]
 pub enum CorgiError {
-    Shared(Arc<Self>),
     VinDecoder(VIN, VinDecoderError),
 }
