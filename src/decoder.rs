@@ -102,6 +102,34 @@ impl VinDecoder {
 
         decoded
     }
+
+    pub fn decode_batch_owned(
+        &self,
+        vins: Vec<VIN>,
+    ) -> HashMap<VIN, Result<VehicleInfo, CorgiError>> {
+        #[cfg(not(feature = "parallel"))]
+        let decoded = vins
+            .into_iter()
+            .map(|vin| {
+                let decoded = self.decode(&vin);
+                (vin, decoded)
+            })
+            .collect();
+
+        #[cfg(feature = "parallel")]
+        let decoded = vins
+            .into_par_iter()
+            .chunks(RAYON_CHUNK_SIZE)
+            .flat_map_iter(|chunk| {
+                chunk.into_iter().map(|vin| {
+                    let decoded = self.decode(&vin);
+                    (vin, decoded)
+                })
+            })
+            .collect();
+
+        decoded
+    }
 }
 
 pub mod extractors {
