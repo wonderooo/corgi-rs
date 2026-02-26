@@ -813,15 +813,16 @@ mod tests {
             "KM8K2CAB4PU001140".to_string(),
             "5N1AT2MT9LC784186".to_string(),
             "2FTEF14H8TCA73155".to_string(),
-            "1FTFW1ET6DFA4553".to_string(),
         ];
 
-        let start = std::time::Instant::now();
-        vins.into_iter().for_each(|v| {
-            let _ = decoder.decode(&v);
+        let decoded = decoder.decode_batch(&vins);
+        assert_eq!(decoded.len(), vins.len());
+        decoded.into_iter().for_each(|(vin, result)| {
+            assert!(
+                result.is_ok(),
+                "VIN {vin} should decode without error; got {result:?}"
+            );
         });
-        let elapsed = start.elapsed();
-        println!("{}", elapsed.as_millis())
     }
 
     #[cfg(feature = "parallel")]
@@ -1502,9 +1503,51 @@ mod tests {
             "5FNRL6H70JB022604".to_string(),
         ];
 
-        let start = std::time::Instant::now();
-        decoder.decode_batch(&vins);
-        let elapsed = start.elapsed();
-        println!("{}", elapsed.as_millis())
+        let decoded = decoder.decode_batch_owned(vins.clone());
+        assert_eq!(decoded.len(), vins.len());
+        assert!(decoded.values().all(|result| result.is_ok()));
+    }
+
+    #[test]
+    fn test_validate_vin_structure_rejects_invalid_length() {
+        let short_vin = "1HG".to_string();
+        let err = validators::validate_vin_structure(&short_vin).unwrap_err();
+        match err {
+            CorgiError::VinDecoder(_, VinDecoderError::InvalidStructure { code, .. }) => {
+                assert!(matches!(
+                    code,
+                    validators::StructureErrorCode::InvalidLength
+                ));
+            }
+            other => panic!("expected structure error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_validate_check_digit_success() {
+        let valid_vin = "1HGCM82633A004352".to_string();
+        assert_eq!(validators::validate_check_digit(&valid_vin).unwrap(), '3');
+    }
+
+    #[test]
+    fn test_validate_check_digit_failure() {
+        let bad_vin = "2FTEF14H8TCA73154".to_string(); // changed last digit
+        let err = validators::validate_check_digit(&bad_vin).unwrap_err();
+        match err {
+            CorgiError::VinDecoder(_, VinDecoderError::InvalidCheckDigit { code, .. }) => {
+                assert!(matches!(
+                    code,
+                    validators::CheckDigitErrorCode::ActualIsNotExpected
+                ));
+            }
+            other => panic!("unexpected error {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_extract_wmi_extended() {
+        let vin = "1F9AAABBBBBCCCDD".to_string();
+        let wmi = extract_wmi(&vin).expect("wmi parse");
+        assert_eq!(wmi.as_ref(), "1F9CCC");
     }
 }

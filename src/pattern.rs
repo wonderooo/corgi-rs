@@ -719,6 +719,39 @@ mod tests {
             model_year: 2009,
         }];
         let r = matcher.matches(&v[0]);
-        println!("{r:#?}")
+        assert!(
+            !r.is_empty(),
+            "expected matches from the archived schema dataset"
+        );
+    }
+
+    #[test]
+    fn calculate_confidence_exact_match() {
+        assert_eq!(calculate_confidence("ABC", "ABC"), 1.0);
+    }
+
+    #[test]
+    fn calculate_confidence_class_matches() {
+        let score = calculate_confidence("[A-C]Z*", "BZQ");
+        assert!(score > 0.5);
+    }
+
+    #[test]
+    fn matches_pattern_handles_vis_metadata() {
+        assert!(matches_pattern("U", "*****|*U"));
+        assert!(!matches_pattern("A", "*****|*U"));
+    }
+
+    #[test]
+    fn matches_simple_pattern_supports_char_classes() {
+        assert!(matches_simple_pattern("B", "[A-C]"));
+        assert!(!matches_simple_pattern("D", "[A-C]"));
+    }
+
+    #[test]
+    fn is_char_in_range_supports_ranges_and_wildcards() {
+        assert!(is_char_in_range('B', "[A-C]"));
+        assert!(is_char_in_range('Z', "*"));
+        assert!(!is_char_in_range('D', "[A-C]"));
     }
 }

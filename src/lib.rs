@@ -1,7 +1,7 @@
 //! Decode VINs into structured vehicle metadata using archived patterns.
 //! The crate bundles validators, lookup builders, and a decoder powered by
 //! `fst` + `rkyv` to keep the runtime footprint predictable.
-use crate::decoder::VinDecoderError;
+pub use crate::decoder::{BodyStyle, VehicleInfo, VinDecoder, VinDecoderError};
 pub use build_shared::*;
 
 pub mod build_shared;

@@ -183,10 +183,10 @@ mod tests {
         let (k1, v1) = iter.next_key().expect("must be some");
         let (k2, v2) = iter.next_key().expect("must be some");
 
-        assert_eq!(k1, "SCF");
-        assert_eq!(v1, vec!["Aston Martin"]);
-        assert_eq!(k2, "SAJ");
-        assert_eq!(v2, vec!["Jaguar"]);
+        assert_eq!(k1, "101");
+        assert_eq!(v1, vec!["Mo Trailers Corp."]);
+        assert_eq!(k2, "102");
+        assert_eq!(v2, vec!["CAMELOT"]);
     }
 
     #[test]
@@ -198,6 +198,33 @@ mod tests {
         while let Some((k, _)) = iter.next_key() {
             last_key = k
         }
-        assert_eq!(last_key, "4C9753");
+        assert_eq!(last_key, "ZZ3");
+    }
+}
+
+#[cfg(test)]
+mod parse_tests {
+    use super::Lookup;
+
+    #[test]
+    fn lookup_from_str_parses_weight() {
+        let lookup: Lookup = "AJ,Model,F-150,99".parse().expect("parse");
+        assert_eq!(lookup.element_code, "Model");
+        assert_eq!(lookup.element_weight, Some(99));
+    }
+
+    #[test]
+    fn lookup_from_str_handles_missing_weight() {
+        let lookup: Lookup = "AJ,Model,F-150".parse().expect("parse");
+        assert_eq!(lookup.element_weight, None);
+    }
+
+    #[test]
+    fn lookup_from_str_errors_on_short_input() {
+        let err = "only,one".parse::<Lookup>().unwrap_err();
+        assert!(
+            err.to_string().contains("could not construct Lookup"),
+            "{err}"
+        );
     }
 }

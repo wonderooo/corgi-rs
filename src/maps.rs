@@ -138,4 +138,10 @@ mod tests {
             }]
         );
     }
+
+    #[test]
+    fn test_map_returns_none_for_unknown_key() {
+        let map = FstRkyvMap::<Lookup>::new();
+        assert!(map.get("UNKNOWN_KEY").is_none());
+    }
 }
