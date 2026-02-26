@@ -9,22 +9,31 @@ use rkyv::{
 };
 
 #[allow(dead_code)]
+/// Marker trait for types that support rkyv deserialization via the shared helpers.
 pub trait RkyvDeserialize<D>: Deserialize<D, HighDeserializer<Error>> {}
 
+/// Marker trait used to enforce rkyv serialization compatibility for cached assets.
 pub trait RkyvSerialize:
     for<'a> Serialize<HighSerializer<AlignedVec, ArenaHandle<'a>, Error>>
 {
 }
 
+/// Types that know how to name their cached `.fst`/`.bin` assets.
 pub trait Saveable<'a> {
+    /// Base file name (without extension) that corresponds to the persisted map data.
     fn base_file_name() -> Cow<'a, str>;
 }
 
 #[derive(Archive, Serialize, Deserialize, Debug, PartialEq)]
+/// A single decoded lookup pattern that ties a VIN pattern to a resolved value.
 pub struct Lookup {
+    /// The raw VIN pattern.
     pub pattern: String,
+    /// The schema field name, e.g. `Model` or `FuelTypePrimary`.
     pub element_code: String,
+    /// The human-readable value derived from the pattern entry.
     pub resolved: String,
+    /// Optional weight used to prefer more specific lookups.
     pub element_weight: Option<usize>,
 }
 
@@ -40,6 +49,15 @@ impl<'a> Saveable<'a> for Lookup {
 impl FromStr for Lookup {
     type Err = std::io::Error;
 
+    /// Parse a CSV line into a [`Lookup`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corgi_rs::build_shared::Lookup;
+    /// let lookup: Lookup = "AJ,Model,L3337,99".parse().unwrap();
+    /// assert_eq!(lookup.element_code, "Model");
+    /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s.split(',').collect::<Vec<_>>();
         if let Some(pattern) = parts.get(0)
@@ -62,7 +80,9 @@ impl FromStr for Lookup {
 }
 
 #[derive(Archive, Serialize, Deserialize, Debug, PartialEq)]
+/// A single WMI make entry extracted from the official master data.
 pub struct Make {
+    /// Manufacturer name such as `FORD` or `TESLA`.
     pub make: String,
 }
 
@@ -78,6 +98,7 @@ impl<'a> Saveable<'a> for Make {
 impl FromStr for Make {
     type Err = std::io::Error;
 
+    /// Parse a raw make string into [`Make`].
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Make {
             make: s.to_string(),
@@ -86,7 +107,9 @@ impl FromStr for Make {
 }
 
 #[derive(Archive, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+/// Schema identifier used to group lookups that belong to the same VIN definition.
 pub struct SchemaId {
+    /// Actual schema identifier string supplied by the master data.
     pub schema_id: String,
 }
 
@@ -102,6 +125,7 @@ impl<'a> Saveable<'a> for SchemaId {
 impl FromStr for SchemaId {
     type Err = std::io::Error;
 
+    /// Turn a plain schema ID string into a typed [`SchemaId`].
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(SchemaId {
             schema_id: s.to_string(),
@@ -109,7 +133,9 @@ impl FromStr for SchemaId {
     }
 }
 
+/// Utility trait that helps parse CSV tables grouped by their leading key.
 pub trait UntilNextKey<'a> {
+    /// Returns the next key and collection of rows until the key changes.
     fn next_key(&mut self) -> Option<(&'a str, Vec<&'a str>)>;
 }
 

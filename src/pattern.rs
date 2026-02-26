@@ -39,20 +39,27 @@ static LOOKUP_TABLES: &[&str] = &[
     "Conversion",
 ];
 
+/// Matches VIN pattern segments against archived schema lookups.
 pub struct PatternMatcher {
     wmi_schema_id_map: FstRkyvMap<SchemaId>,
     schema_id_lookup_map: FstRkyvMap<Lookup>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
+/// Lookup query that feeds into [`PatternMatcher`].
 pub struct MatchQuery<'a> {
+    /// WMI segment (first three VIN characters, possibly extended).
     pub wmi: &'a str,
+    /// Model year derived from VIN.
     pub model_year: i32,
+    /// VDS (vehicle descriptor section).
     pub vds: &'a str,
+    /// VIS (vehicle identifier section).
     pub vis: &'a str,
 }
 
 #[derive(Debug)]
+/// Result for a single pattern lookup, including confidence and source schema.
 pub struct PatternMatch {
     pub lookup: Lookup,
     pub schema_id: SchemaId,
@@ -62,6 +69,7 @@ pub struct PatternMatch {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// Indicates whether the match applies to the VDS or VIS segment.
 pub enum PatternType {
     VDS,
     VIS,
@@ -73,6 +81,7 @@ struct LookupWithSchemaId {
 }
 
 impl PatternMatcher {
+    /// Returns a matcher backed by the persisted `.fst`/`.bin` maps.
     pub fn new() -> Self {
         Self {
             wmi_schema_id_map: FstRkyvMap::new(),
@@ -80,6 +89,7 @@ impl PatternMatcher {
         }
     }
 
+    /// Fetch decoded patterns for the provided VIN query.
     pub fn matches(&self, query: &MatchQuery) -> Vec<PatternMatch> {
         #[cfg(not(feature = "parallel"))]
         let groupped = self
@@ -205,6 +215,7 @@ impl PatternMatcher {
         return matches;
     }
 
+    /// Return matches before filtering/grouping to allow introspection in tests.
     pub fn raw_matches(&self, query: &MatchQuery) -> Vec<PatternMatch> {
         let schemas = if let Some(schemas) = self.wmi_schema_id_map.get(&query.wmi) {
             schemas
@@ -337,6 +348,7 @@ impl PatternMatcher {
     }
 }
 
+/// Build a [`PatternMatch`] with confidence/position metadata.
 fn create_pattern_match(
     pattern: LookupWithSchemaId,
     match_query: &MatchQuery,
@@ -404,6 +416,7 @@ fn create_pattern_match(
     }
 }
 
+/// Score how closely the VIN fragment matches the given lookup pattern.
 pub fn calculate_confidence(pattern: &str, input: &str) -> f64 {
     if pattern.is_empty() || input.is_empty() {
         return 0.0;
@@ -512,6 +525,7 @@ pub fn calculate_confidence(pattern: &str, input: &str) -> f64 {
     score.clamp(0.0, 1.0)
 }
 
+/// Determine whether the VIN segment satisfies the lookup pattern.
 pub fn matches_pattern(input: &str, pattern: &str) -> bool {
     if input.is_empty() || pattern.is_empty() {
         return false;
@@ -546,6 +560,7 @@ pub fn matches_pattern(input: &str, pattern: &str) -> bool {
     matches_simple_pattern(input, actual_pattern)
 }
 
+/// Like [`matches_pattern`] but without the VIS metadata handling.
 pub fn matches_simple_pattern(input: &str, pattern: &str) -> bool {
     let input_chars: Vec<char> = input.chars().collect();
     let pattern_chars: Vec<char> = pattern.chars().collect();
@@ -614,6 +629,7 @@ pub fn matches_simple_pattern(input: &str, pattern: &str) -> bool {
         || (pattern_index == pattern_chars.len() - 1 && pattern_chars[pattern_index] == '*')
 }
 
+/// Check whether `ch` falls inside the character class described in `pattern`.
 pub fn is_char_in_range(ch: char, pattern: &str) -> bool {
     // Not a character class: exact match or wildcard
     if !pattern.starts_with('[') || !pattern.ends_with(']') {

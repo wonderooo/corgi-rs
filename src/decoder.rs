@@ -21,35 +21,41 @@ use crate::{
     pattern::{MatchQuery, PatternMatcher},
 };
 
+/// Errors emitted during VIN validation or decoding.
 #[derive(Debug)]
 pub enum VinDecoderError {
+    /// The VIN structure did not meet the CFR requirements (length or character set).
     InvalidStructure {
         message: String,
         code: StructureErrorCode,
     },
+    /// Check digit validation failed.
     InvalidCheckDigit {
         message: String,
         code: CheckDigitErrorCode,
     },
+    /// Unable to read the model-year codified character.
     UnreadableModelYear {
         message: String,
         code: ModelYearErrorCode,
     },
-    UnreadableWmi {
-        message: String,
-        code: WmiErrorCode,
-    },
-    Unexpected {
-        message: String,
-    },
+    /// Unable to read the base WMI segment.
+    UnreadableWmi { message: String, code: WmiErrorCode },
+    /// Any other unexpected failure during decoding.
+    Unexpected { message: String },
 }
 
+/// VIN decoder that validates structure, extracts VDS/VIS segments, and combines them with archived schema data.
 pub struct VinDecoder {
     pattern_matcher: PatternMatcher,
     wmi_make_map: FstRkyvMap<Make>,
 }
 
 impl VinDecoder {
+    /// Construct a decoder instance, loading pattern/lookups from disk.
+    ///
+    /// The maps rely on `MAPS_DIR` (`$HOME/.corgi-rs-cache` by default) to find the
+    /// serialized `.fst`/`.bin` bundles.
     pub fn new() -> Self {
         Self {
             pattern_matcher: PatternMatcher::new(),
@@ -57,6 +63,17 @@ impl VinDecoder {
         }
     }
 
+    /// Decode a single VIN, returning a structured [`VehicleInfo`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corgi_rs::{VIN, VinDecoder};
+    /// let decoder = VinDecoder::new();
+    /// let vin: VIN = "2FTEF14H8TCA73155".to_string();
+    /// let info = decoder.decode(&vin).expect("valid VIN");
+    /// assert_eq!(info.make, "Ford");
+    /// ```
     pub fn decode(&self, vin: &VIN) -> Result<VehicleInfo, CorgiError> {
         validate_vin_structure(&vin)?;
         validate_check_digit(&vin)?;
@@ -83,6 +100,9 @@ impl VinDecoder {
         Ok(vehicle_info)
     }
 
+    /// Decode a slice of VINs and return a map from each input reference to its result.
+    ///
+    /// When compiled with the `parallel` feature the VINs will be split across Rayon chunks.
     pub fn decode_batch<'inp>(
         &self,
         vins: &'inp Vec<VIN>,
@@ -103,6 +123,9 @@ impl VinDecoder {
         decoded
     }
 
+    /// Consume an owned `Vec<VIN>` and decode each entry, returning owned VIN keys.
+    ///
+    /// Useful when you already own the VIN collection and don’t need shared references.
     pub fn decode_batch_owned(
         &self,
         vins: Vec<VIN>,
@@ -146,12 +169,19 @@ pub mod extractors {
     ];
 
     #[derive(Debug)]
+    /// Reason extraction of the model year failed.
     pub enum ModelYearErrorCode {
         CharIndexOutOfBounds,
         UnencodedModelYear,
         ModelYearCodeIncompatibile,
     }
 
+    /// Inspect VIN characters to calculate its codified model year.
+    ///
+    /// # Errors
+    ///
+    /// Returns `CorgiError::VinDecoder` when the VIN length is wrong, the year is `0`,
+    /// or the model year code is unsupported.
     pub fn extract_model_year(vin: &String) -> Result<u32, CorgiError> {
         let year_char =
             vin.chars()
@@ -217,11 +247,13 @@ pub mod extractors {
     }
 
     #[derive(Debug)]
+    /// Error reasons when extracting the WMI portion.
     pub enum WmiErrorCode {
         CharIndexOutOfBounds,
         InvalidVinLength,
     }
 
+    /// Return the base or extended WMI (first three characters, or 6 when needed).
     pub fn extract_wmi(vin: &String) -> Result<Cow<'_, str>, CorgiError> {
         if vin.len() < 3 {
             return Err(CorgiError::VinDecoder(
@@ -257,6 +289,7 @@ pub mod extractors {
 
     pub type Vds<'a> = &'a str;
     pub type Vis<'a> = &'a str;
+    /// Split the VIN into VDS and VIS segments used for pattern matching.
     pub fn extract_vds_vis(vin: &'_ String) -> Result<(Vds<'_>, Vis<'_>), CorgiError> {
         let vds = &vin[3..9];
         let vis = &vin[9..17];
@@ -264,6 +297,29 @@ pub mod extractors {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+    /// Decoded vehicle metadata returned by [`VinDecoder`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corgi_rs::decoder::extractors::{BodyStyle, VehicleInfo};
+    /// let info = VehicleInfo {
+    ///     make: "Ford".to_string(),
+    ///     model: Some("F-150".to_string()),
+    ///     year: 2023,
+    ///     series: None,
+    ///     trim: None,
+    ///     body_style: Some(BodyStyle::Pickup),
+    ///     drive_type: None,
+    ///     engine_type: None,
+    ///     fuel_type: None,
+    ///     transmission: None,
+    ///     doors: None,
+    ///     gvwr: None,
+    ///     manufacturer: None,
+    /// };
+    /// assert_eq!(info.make, "Ford");
+    /// ```
     pub struct VehicleInfo {
         pub make: String,
         pub model: Option<String>,
@@ -281,6 +337,7 @@ pub mod extractors {
     }
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    /// Canonical body styles surfaced through lookup patterns.
     pub enum BodyStyle {
         Sedan,
         Coupe,
@@ -299,6 +356,7 @@ pub mod extractors {
         Other,
     }
 
+    /// Build a [`VehicleInfo`] from the supplied patterns returned by [`PatternMatcher`].
     pub fn extract_vehicle_info(
         make: String,
         model_year: i32,
@@ -498,6 +556,16 @@ pub mod extractors {
         m
     });
 
+    /// Normalize raw `BodyClass`/`BodyStyle` strings to [`BodyStyle`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use corgi_rs::decoder::extractors::extract_body_style;
+    /// use corgi_rs::decoder::extractors::BodyStyle;
+    /// assert_eq!(extract_body_style(&"Sedan".to_string()), BodyStyle::Sedan);
+    /// assert_eq!(extract_body_style(&"Extended Cab Pickup".to_string()), BodyStyle::Pickup);
+    /// ```
     pub fn extract_body_style(raw_body_style: &String) -> BodyStyle {
         //
         // Match exact entries
@@ -558,11 +626,15 @@ pub mod validators {
     use crate::{CorgiError, decoder::VinDecoderError};
 
     #[derive(Debug)]
+    /// Reasons why the VIN structure validation failed.
     pub enum StructureErrorCode {
         InvalidLength,
         InvalidCharacters,
     }
 
+    /// Ensure the VIN uses exactly 17 valid characters.
+    ///
+    /// Rejects lengths other than 17 and disallowed letters I/O/Q.
     pub fn validate_vin_structure(vin: &String) -> Result<(), CorgiError> {
         if vin.len() != 17 {
             return Err(CorgiError::VinDecoder(
@@ -625,11 +697,13 @@ pub mod validators {
     }
 
     #[derive(Debug)]
+    /// Reasons why the check digit validation failed.
     pub enum CheckDigitErrorCode {
         NumberIsNotCharacter,
         ActualIsNotExpected,
     }
 
+    /// Compute and verify the VIN check digit according to CFR Title 49 § 565.15(c).
     pub fn validate_check_digit(vin: &String) -> Result<char, CorgiError> {
         //
         // Check digit weights according to CFR Title 49 § 565.15(c)

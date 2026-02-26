@@ -6,6 +6,7 @@ use rkyv::{deserialize, rancor::Error, vec::ArchivedVec};
 
 use crate::{RkyvDeserialize, RkyvSerialize, Saveable};
 
+/// Wrapper around `fst::Map` + `rkyv` arrays that lazily read serialized lookup data.
 pub struct FstRkyvMap<R>
 where
     R: RkyvSerialize,
@@ -21,6 +22,7 @@ where
     R: RkyvSerialize,
     R::Archived: RkyvDeserialize<R>,
 {
+    /// Loads the `.fst` index and `.bin` values from `MAPS_DIR` (or `$HOME/.corgi-rs-cache`).
     pub fn new<'a>() -> Self
     where
         R: Saveable<'a>,
@@ -49,6 +51,9 @@ where
         }
     }
 
+    /// Get the cached entries registered under `key`.
+    ///
+    /// Returns `None` when the key is missing, otherwise returns a fresh `Vec<R>`.
     pub fn get(&self, key: &str) -> Option<Vec<R>> {
         if let Some(offset_len_combined) = self.fst_map.get(key) {
             let offset = (offset_len_combined >> 32) as usize;
