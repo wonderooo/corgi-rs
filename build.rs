@@ -1,130 +1,241 @@
-use std::io::{BufWriter, Write};
+//! Turn the compressed vPIC assets into memory-mappable lookup tables.
+//!
+//! `assets/*.tsv.zst` are tab-separated exports of the NHTSA vPIC database (see
+//! `tools/extract_assets.sql`), sorted by their first column. For each one this
+//! writes a pair of files into `$HOME/.corgi-rs-cache`:
+//!
+//! - `<table>.fst` — an fst map from key to a packed `(offset, length)`,
+//! - `<table>.bin` — the rkyv-archived `Vec<Row>` for each key, concatenated.
+//!
+//! The tables are rebuilt whenever the assets change, tracked through a stamp
+//! file so a fresh checkout does not silently keep a previous crate version's
+//! tables.
+
+use std::fs::File;
+use std::io::{BufWriter, Read, Write};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::{fs::File, path::Path};
 
 use fst::MapBuilder;
-
-use build_shared::{Lookup, UntilNextKey};
 use rkyv::rancor::Error;
 
-use crate::build_shared::{Make, RkyvSerialize, Saveable, SchemaId};
+use crate::build_shared::{
+    DefaultValueRow, ElementMeta, EngineModelRow, GenerationRow, ModelEntry, PatternRow,
+    RkyvSerialize, Saveable, SchemaRef, SpecRow, UntilNextKey, WmiEntry,
+};
 
 #[path = "src/build_shared.rs"]
 mod build_shared;
 
+/// Bump when the on-disk table layout changes in a way old caches cannot serve.
+const TABLE_FORMAT_VERSION: u32 = 2;
+
 fn main() {
-    let out_dir = dirs::home_dir()
-        .expect("HOME env variable not set")
-        .join(".corgi-rs-cache");
-    std::fs::create_dir_all(&out_dir).expect("dir create");
+    let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+    let out_dir = cache_dir();
+    std::fs::create_dir_all(&out_dir).expect("create the lookup table directory");
 
-    let lookup_fst_path = Path::new(&out_dir).join(format!("{}.fst", Lookup::base_file_name()));
-    let lookup_values_path = Path::new(&out_dir).join(format!("{}.bin", Lookup::base_file_name()));
-    let lookup_task_handle = if !lookup_fst_path.exists() || !lookup_values_path.exists() {
-        let fst_file = File::create(&lookup_fst_path).expect("fst file create");
-        let values_file = File::create(&lookup_values_path).expect("values file create");
+    let stamp_path = out_dir.join("assets.stamp");
+    let stamp = asset_stamp(&assets);
+    let up_to_date = std::fs::read_to_string(&stamp_path).is_ok_and(|found| found == stamp);
 
-        let handle = std::thread::spawn(|| {
-            generate_fst_map::<Lookup>(
-                &Path::new(&format!("assets/{}.csv", Lookup::base_file_name())),
-                fst_file,
-                values_file,
-            )
-            .expect("generate fst lookup");
+    if !up_to_date {
+        // Build the tables in parallel; the largest one dominates the wall clock.
+        std::thread::scope(|scope| {
+            let assets = &assets;
+            let out_dir = &out_dir;
+            let mut handles = Vec::new();
+
+            macro_rules! build {
+                ($row:ty) => {
+                    handles.push(scope.spawn(move || build_table::<$row>(assets, out_dir)));
+                };
+            }
+
+            build!(WmiEntry);
+            build!(SchemaRef);
+            build!(PatternRow);
+            build!(ModelEntry);
+            build!(SpecRow);
+            build!(EngineModelRow);
+            build!(DefaultValueRow);
+            build!(GenerationRow);
+
+            for handle in handles {
+                handle.join().expect("build a lookup table");
+            }
         });
 
-        Some(handle)
-    } else {
-        None
-    };
-
-    let make_fst_path = Path::new(&out_dir).join(format!("{}.fst", Make::base_file_name()));
-    let make_values_path = Path::new(&out_dir).join(format!("{}.bin", Make::base_file_name()));
-    let make_task_handle = if !make_fst_path.exists() || !make_values_path.exists() {
-        let fst_file = File::create(&make_fst_path).expect("fst file create");
-        let values_file = File::create(&make_values_path).expect("values file create");
-
-        let handle = std::thread::spawn(|| {
-            generate_fst_map::<Make>(
-                &Path::new(&format!("assets/{}.csv", Make::base_file_name())),
-                fst_file,
-                values_file,
-            )
-            .expect("generate fst make")
-        });
-
-        Some(handle)
-    } else {
-        None
-    };
-
-    let schema_fst_path = Path::new(&out_dir).join(format!("{}.fst", SchemaId::base_file_name()));
-    let schema_values_path =
-        Path::new(&out_dir).join(format!("{}.bin", SchemaId::base_file_name()));
-    let schema_task_handle = if !schema_fst_path.exists() || !schema_values_path.exists() {
-        let fst_file = File::create(&schema_fst_path).expect("fst file create");
-        let values_file = File::create(&schema_values_path).expect("values file create");
-
-        let handle = std::thread::spawn(|| {
-            generate_fst_map::<SchemaId>(
-                &Path::new(&format!("assets/{}.csv", SchemaId::base_file_name())),
-                fst_file,
-                values_file,
-            )
-            .expect("generate fst schema")
-        });
-
-        Some(handle)
-    } else {
-        None
-    };
-
-    lookup_task_handle.map(|h| h.join().expect("lookup task join"));
-    make_task_handle.map(|h| h.join().expect("make task join"));
-    schema_task_handle.map(|h| h.join().expect("schema task join"));
-
-    println!("cargo:rerun-if-changed=src/build_shared.rs");
-}
-
-fn generate_fst_map<V>(
-    csv_path: &Path,
-    fst_file: File,
-    values_file: File,
-) -> Result<(), Box<dyn std::error::Error>>
-where
-    V: RkyvSerialize + FromStr,
-{
-    let csv = std::fs::read_to_string(csv_path)?;
-
-    let fst_writer = BufWriter::new(fst_file);
-    let mut fst_builder = MapBuilder::new(fst_writer)?;
-
-    let mut values_writer = BufWriter::new(values_file);
-
-    let mut current_offset = 0 as u64;
-
-    // Skip header line
-    let mut csv_lines = csv.lines().skip(1).peekable();
-    while let Some((key, values)) = csv_lines.next_key() {
-        let values = values
-            .into_iter()
-            .map(|v| {
-                V::from_str(v)
-                    .map_err(|_| std::io::Error::other("value from str"))
-                    .expect("str parse")
-            })
-            .collect::<Vec<_>>();
-        let bytes = rkyv::to_bytes::<Error>(&values)?;
-        values_writer.write_all(&bytes)?;
-
-        let offset_len_combined = (current_offset << 32) | bytes.len() as u64;
-        fst_builder.insert(key, offset_len_combined)?;
-
-        current_offset += bytes.len() as u64;
+        remove_obsolete_tables(&out_dir);
+        std::fs::write(&stamp_path, &stamp).expect("write the asset stamp");
     }
 
-    fst_builder.finish()?;
-    values_writer.flush()?;
+    generate_static_tables(&assets);
 
-    Ok(())
+    // Track the stamp itself, so wiping the cache directory is enough to make
+    // cargo re-run this script. A `rerun-if-changed` path that does not exist
+    // forces a re-run, which is exactly the behaviour we want here.
+    println!("cargo:rerun-if-changed={}", stamp_path.display());
+    println!("cargo:rerun-if-changed=assets");
+    println!("cargo:rerun-if-changed=src/build_shared.rs");
+    println!("cargo:rerun-if-env-changed=CORGI_CACHE_DIR");
+}
+
+/// Where the generated tables go. Mirrors `corgi_rs::maps::maps_dir`.
+fn cache_dir() -> PathBuf {
+    std::env::var_os("CORGI_CACHE_DIR")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|home| home.join(".corgi-rs-cache")))
+        .expect("HOME is not set; point CORGI_CACHE_DIR at a writable directory")
+}
+
+/// Tables shipped by earlier crate versions, which nothing reads any more.
+const OBSOLETE_TABLES: [&str; 3] = ["schema_id_lookup", "wmi_make", "wmi_schema_id"];
+
+/// Delete tables a previous version of the crate left in the cache directory.
+/// They are tens of megabytes each and would otherwise linger forever.
+fn remove_obsolete_tables(out_dir: &Path) {
+    for table in OBSOLETE_TABLES {
+        for extension in ["fst", "bin"] {
+            let _ = std::fs::remove_file(out_dir.join(format!("{table}.{extension}")));
+        }
+    }
+}
+
+/// A fingerprint of the asset inputs, so stale tables get rebuilt.
+fn asset_stamp(assets: &Path) -> String {
+    let mut entries: Vec<String> = std::fs::read_dir(assets)
+        .expect("read the assets directory")
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let meta = entry.metadata().ok()?;
+            Some(format!("{}:{}", entry.file_name().display(), meta.len()))
+        })
+        .collect();
+    entries.sort();
+    format!("v{TABLE_FORMAT_VERSION}\n{}", entries.join("\n"))
+}
+
+/// Read and decompress `assets/<name>.tsv.zst`.
+fn read_asset(assets: &Path, name: &str) -> String {
+    let path = assets.join(format!("{name}.tsv.zst"));
+    let file =
+        File::open(&path).unwrap_or_else(|err| panic!("open the asset {}: {err}", path.display()));
+
+    let mut text = String::new();
+    zstd::Decoder::new(file)
+        .unwrap_or_else(|err| panic!("decompress {}: {err}", path.display()))
+        .read_to_string(&mut text)
+        .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
+
+    text
+}
+
+/// Build one `.fst`/`.bin` pair from the asset that names it.
+fn build_table<'a, R>(assets: &Path, out_dir: &Path)
+where
+    R: RkyvSerialize + FromStr + Saveable<'a>,
+    <R as FromStr>::Err: std::fmt::Display,
+{
+    let table = R::base_file_name();
+    let text = read_asset(assets, &table);
+
+    let fst_path = out_dir.join(format!("{table}.fst"));
+    let values_path = out_dir.join(format!("{table}.bin"));
+
+    let mut fst_builder = MapBuilder::new(BufWriter::new(
+        File::create(&fst_path).expect("create the fst file"),
+    ))
+    .expect("start the fst map");
+    let mut values = BufWriter::new(File::create(&values_path).expect("create the values file"));
+
+    let mut offset = 0u64;
+    let mut lines = text.lines().peekable();
+
+    while let Some((key, rows)) = lines.next_key() {
+        let rows: Vec<R> = rows
+            .into_iter()
+            .map(|row| {
+                R::from_str(row)
+                    .unwrap_or_else(|err| panic!("parse a row of {table}.tsv (`{row}`): {err}"))
+            })
+            .collect();
+
+        let bytes = rkyv::to_bytes::<Error>(&rows)
+            .unwrap_or_else(|err| panic!("archive the rows for {table} key `{key}`: {err}"));
+        values.write_all(&bytes).expect("write archived rows");
+
+        // fst values are u64, so pack the record's location into one: offset in
+        // the high half, length in the low half.
+        assert!(
+            bytes.len() <= u32::MAX as usize,
+            "{table} key `{key}` archives to more than 4 GiB"
+        );
+        fst_builder
+            .insert(key, (offset << 32) | bytes.len() as u64)
+            .unwrap_or_else(|err| {
+                panic!("insert {table} key `{key}` (are the asset rows sorted by key?): {err}")
+            });
+
+        offset += bytes.len() as u64;
+        assert!(
+            offset <= u32::MAX as u64,
+            "{table}.bin grew past 4 GiB, which the packed fst value cannot address"
+        );
+    }
+
+    fst_builder.finish().expect("finish the fst map");
+    values.flush().expect("flush the values file");
+}
+
+/// Emit the element and vehicle-type tables as Rust source, so the decoder can
+/// name its output without a runtime lookup.
+fn generate_static_tables(assets: &Path) {
+    let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").expect("OUT_DIR is set by cargo"));
+
+    let mut source = String::from(
+        "// @generated by build.rs from assets/element.tsv.zst and \
+         assets/vehicle_type.tsv.zst. Do not edit.\n\n",
+    );
+
+    let elements = read_asset(assets, "element");
+    let mut rows: Vec<ElementMeta> = elements
+        .lines()
+        .map(|line| {
+            ElementMeta::from_str(line)
+                .unwrap_or_else(|err| panic!("parse a row of element.tsv (`{line}`): {err}"))
+        })
+        .collect();
+    rows.sort_by_key(|element| element.id);
+
+    source.push_str("static ELEMENTS: &[Element] = &[\n");
+    for element in &rows {
+        source.push_str(&format!(
+            "    Element {{ id: {}, code: {}, name: {}, data_type: {}, group: {} }},\n",
+            element.id,
+            quote(&element.code),
+            quote(&element.name),
+            quote(&element.data_type),
+            quote(element.group.as_deref().unwrap_or("")),
+        ));
+    }
+    source.push_str("];\n\n");
+
+    let vehicle_types = read_asset(assets, "vehicle_type");
+    source.push_str("static VEHICLE_TYPES: &[(u16, &str)] = &[\n");
+    for line in vehicle_types.lines() {
+        let mut columns = line.split('\t');
+        let (Some(id), Some(name)) = (columns.next(), columns.next()) else {
+            continue;
+        };
+        source.push_str(&format!("    ({id}, {}),\n", quote(name)));
+    }
+    source.push_str("];\n");
+
+    std::fs::write(out_dir.join("elements.rs"), source).expect("write the generated element table");
+}
+
+/// Render `value` as a Rust string literal.
+fn quote(value: &str) -> String {
+    format!("{value:?}")
 }

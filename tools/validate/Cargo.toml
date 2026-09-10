@@ -1,0 +1,14 @@
+[package]
+name = "corgi-validate"
+version = "0.1.0"
+edition = "2024"
+description = "Measure corgi-rs decoding accuracy against Copart/IAAI auction listings"
+license = "MIT"
+publish = false
+
+[dependencies]
+corgi-rs = { path = "../.." }
+postgres = "0.19.10"
+native-tls = "0.2.14"
+postgres-native-tls = "0.5.1"
+rayon = "1.11.0"
