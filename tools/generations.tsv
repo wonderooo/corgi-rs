@@ -1,0 +1,1200 @@
+# Vehicle generations, keyed by the make and model corgi-rs decodes.
+#
+# vPIC does not record generations: NHTSA registers what a vehicle *is*, not
+# how the manufacturer markets its redesign cycle. This table supplies them.
+#
+# Columns: make, model, year_from, year_to, ordinal, code, name
+#   year_to  0 means the generation is still current
+#   ordinal  0 means the generation has no commonly used number
+#   code     the manufacturer's platform or chassis code, blank when there is none
+#
+# Model years, inclusive, as the VIN encodes them -- not calendar years.
+# Boundaries are checked against the VIN body codes of ~627,000 auction lots by
+# tools/check_generations.sh; see tools/README.md.
+Toyota	Camry	1992	1996	0	XV10	XV10
+Toyota	Camry	1997	2001	0	XV20	XV20
+Toyota	Camry	2002	2006	0	XV30	XV30
+Toyota	Camry	2007	2011	0	XV40	XV40
+Toyota	Camry	2012	2017	0	XV50	XV50
+Toyota	Camry	2018	2024	0	XV70	XV70
+Toyota	Camry	2025	0	0	XV80	XV80
+Honda	Civic	1996	2000	6	EJ/EK/EM	6th generation
+Honda	Civic	2001	2005	7	ES/EM2/EP	7th generation
+Honda	Civic	2006	2011	8	FA/FG/FD	8th generation
+Honda	Civic	2012	2015	9	FB/FG	9th generation
+Honda	Civic	2016	2021	10	FC/FK	10th generation
+Honda	Civic	2022	0	11	FE/FL	11th generation
+Honda	Accord	1994	1997	5	CD	5th generation
+Honda	Accord	1998	2002	6	CG/CF	6th generation
+Honda	Accord	2003	2007	7	CM/CL	7th generation
+Honda	Accord	2008	2012	8	CP/CS	8th generation
+Honda	Accord	2013	2017	9	CR	9th generation
+Honda	Accord	2018	2022	10	CV	10th generation
+Honda	Accord	2023	0	11	CY	11th generation
+Toyota	Corolla	1993	1997	7	E100	E100
+Toyota	Corolla	1998	2002	8	E110	E110
+Toyota	Corolla	2003	2008	9	E120	E120
+Toyota	Corolla	2009	2013	10	E140	E140
+Toyota	Corolla	2014	2019	11	E170	E170
+Toyota	Corolla	2020	0	12	E210	E210
+Ford	F-150	1992	1996	9		9th generation
+Ford	F-150	1997	2003	10	PN96	10th generation
+Ford	F-150	2004	2008	11	P221	11th generation
+Ford	F-150	2009	2014	12	P415	12th generation
+Ford	F-150	2015	2020	13	P552	13th generation
+Ford	F-150	2021	0	14	P702	14th generation
+Chevrolet	Silverado	1999	2006	1	GMT800	GMT800
+Chevrolet	Silverado	2007	2013	2	GMT900	GMT900
+Chevrolet	Silverado	2014	2018	3	K2XX	K2XX
+Chevrolet	Silverado	2019	0	4	T1XX	T1XX
+Honda	CR-V	1997	2001	1	RD1	1st generation
+Honda	CR-V	2002	2006	2	RD4	2nd generation
+Honda	CR-V	2007	2011	3	RE	3rd generation
+Honda	CR-V	2012	2016	4	RM	4th generation
+Honda	CR-V	2017	2022	5	RW	5th generation
+Honda	CR-V	2023	0	6	RS	6th generation
+Nissan	Altima	1998	2001	2	L30	2nd generation
+Nissan	Altima	2002	2006	3	L31	3rd generation
+Nissan	Altima	2007	2012	4	L32	4th generation
+Nissan	Altima	2013	2018	5	L33	5th generation
+Nissan	Altima	2019	0	6	L34	6th generation
+Toyota	RAV4	1996	2000	1	XA10	XA10
+Toyota	RAV4	2001	2005	2	XA20	XA20
+Toyota	RAV4	2006	2012	3	XA30	XA30
+Toyota	RAV4	2013	2018	4	XA40	XA40
+Toyota	RAV4	2019	0	5	XA50	XA50
+Hyundai	Elantra	2001	2006	3	XD	XD
+Hyundai	Elantra	2007	2010	4	HD	HD
+Hyundai	Elantra	2011	2016	5	MD	MD
+Hyundai	Elantra	2017	2020	6	AD	AD
+Hyundai	Elantra	2021	0	7	CN7	CN7
+Ford	Escape	2001	2007	1		1st generation
+Ford	Escape	2008	2012	2		2nd generation
+Ford	Escape	2013	2019	3	C520	3rd generation
+Ford	Escape	2020	0	4	CX482	4th generation
+Chevrolet	Equinox	2005	2009	1	Theta	1st generation
+Chevrolet	Equinox	2010	2017	2	Theta	2nd generation
+Chevrolet	Equinox	2018	2024	3	D2XX	3rd generation
+Chevrolet	Equinox	2025	0	4	VSS-F	4th generation
+Nissan	Rogue	2008	2013	1	S35	1st generation
+Nissan	Rogue	2014	2020	2	T32	2nd generation
+Nissan	Rogue	2021	0	3	T33	3rd generation
+Nissan	Sentra	1995	1999	4	B14	B14
+Nissan	Sentra	2000	2006	5	B15	B15
+Nissan	Sentra	2007	2012	6	B16	B16
+Nissan	Sentra	2013	2019	7	B17	B17
+Nissan	Sentra	2020	0	8	B18	B18
+Hyundai	Sonata	1999	2005	4	EF	EF
+Hyundai	Sonata	2006	2010	5	NF	NF
+Hyundai	Sonata	2011	2014	6	YF	YF
+Hyundai	Sonata	2015	2019	7	LF	LF
+Hyundai	Sonata	2020	0	8	DN8	DN8
+Ford	Fusion	2006	2012	1	CD3	1st generation
+Ford	Fusion	2013	2020	2	CD4	2nd generation
+Ford	Explorer	1995	2001	2	UN105	2nd generation
+Ford	Explorer	2002	2005	3	U152	3rd generation
+Ford	Explorer	2006	2010	4	U251	4th generation
+Ford	Explorer	2011	2019	5	U502	5th generation
+Ford	Explorer	2020	0	6	U625	6th generation
+Chevrolet	Malibu	1997	2003	5		5th generation
+Chevrolet	Malibu	2004	2007	6	Epsilon	6th generation
+Chevrolet	Malibu	2008	2012	7	Epsilon	7th generation
+Chevrolet	Malibu	2013	2015	8	Epsilon II	8th generation
+Chevrolet	Malibu	2016	2025	9	E2XX	9th generation
+Jeep	Grand Cherokee	1993	1998	1	ZJ	ZJ
+Jeep	Grand Cherokee	1999	2004	2	WJ	WJ
+Jeep	Grand Cherokee	2005	2010	3	WK	WK
+Jeep	Grand Cherokee	2011	2021	4	WK2	WK2
+Jeep	Grand Cherokee	2022	0	5	WL	WL
+Ram	1500	2011	2018	4	DS	DS
+Ram	1500	2019	0	5	DT	DT
+Ram	2500	2011	2018	4	DJ	DJ
+Ram	2500	2019	0	5	DJ	DJ (2019 redesign)
+Ram	3500	2011	2018	4	D2	D2
+Ram	3500	2019	0	5	D2	D2 (2019 redesign)
+Toyota	Highlander	2001	2007	1	XU20	XU20
+Toyota	Highlander	2008	2013	2	XU40	XU40
+Toyota	Highlander	2014	2019	3	XU50	XU50
+Toyota	Highlander	2020	0	4	XU70	XU70
+Toyota	Tacoma	1995	2004	1	N190	1st generation
+Toyota	Tacoma	2005	2015	2	N220	2nd generation
+Toyota	Tacoma	2016	2023	3	N300	3rd generation
+Toyota	Tacoma	2024	0	4	N400	4th generation
+Hyundai	Tucson	2005	2009	1	JM	JM
+Hyundai	Tucson	2010	2015	2	LM	LM
+Hyundai	Tucson	2016	2021	3	TL	TL
+Hyundai	Tucson	2022	0	4	NX4	NX4
+GMC	Sierra	1999	2006	1	GMT800	GMT800
+GMC	Sierra	2007	2013	2	GMT900	GMT900
+GMC	Sierra	2014	2018	3	K2XX	K2XX
+GMC	Sierra	2019	0	4	T1XX	T1XX
+Toyota	Prius	2001	2003	1	XW10	XW10
+Toyota	Prius	2004	2009	2	XW20	XW20
+Toyota	Prius	2010	2015	3	XW30	XW30
+Toyota	Prius	2016	2022	4	XW50	XW50
+Toyota	Prius	2023	0	5	XW60	XW60
+Ford	Edge	2007	2014	1	CD3	1st generation
+Ford	Edge	2015	2024	2	CD4	2nd generation
+Kia	Forte	2010	2013	1	TD	TD
+Kia	Forte	2014	2018	2	YD	YD
+Kia	Forte	2019	2024	3	BD	BD
+Ford	Focus	2000	2007	1	C170	1st generation
+Ford	Focus	2008	2011	2	C307	2nd generation
+Ford	Focus	2012	2018	3	C346	3rd generation
+Subaru	Forester	1998	2002	1	SF	SF
+Subaru	Forester	2003	2008	2	SG	SG
+Subaru	Forester	2009	2013	3	SH	SH
+Subaru	Forester	2014	2018	4	SJ	SJ
+Subaru	Forester	2019	2024	5	SK	SK
+Subaru	Forester	2025	0	6	SM	SM
+Subaru	Outback	2005	2009	3	BP	BP
+Subaru	Outback	2010	2014	4	BR	BR
+Subaru	Outback	2015	2019	5	BS	BS
+Subaru	Outback	2020	2025	6	BT	BT
+Subaru	Outback	2026	0	7	BU	BU
+Volkswagen	Jetta	1999	2005	4	A4	Mk4
+Volkswagen	Jetta	2006	2010	5	A5	Mk5
+Volkswagen	Jetta	2011	2018	6	A6	Mk6
+Volkswagen	Jetta	2019	0	7	A7	Mk7
+Honda	Pilot	2003	2008	1	YF1	1st generation
+Honda	Pilot	2009	2015	2	YF3	2nd generation
+Honda	Pilot	2016	2022	3	YF6	3rd generation
+Honda	Pilot	2023	0	4	YG	4th generation
+Honda	Odyssey	1999	2004	2	RL1	2nd generation
+Honda	Odyssey	2005	2010	3	RL3	3rd generation
+Honda	Odyssey	2011	2017	4	RL5	4th generation
+Honda	Odyssey	2018	0	5	RL6	5th generation
+Jeep	Cherokee	1984	2001	1	XJ	XJ
+Jeep	Cherokee	2014	2023	2	KL	KL
+Kia	Sorento	2003	2009	1	BL	BL
+Kia	Sorento	2011	2015	2	XM	XM
+Kia	Sorento	2016	2020	3	UM	UM
+Kia	Sorento	2021	0	4	MQ4	MQ4
+Chevrolet	Cruze	2011	2015	1	J300	1st generation
+Chevrolet	Cruze	2016	2019	2	D2XX	2nd generation
+Toyota	Sienna	1998	2003	1	XL10	XL10
+Toyota	Sienna	2004	2010	2	XL20	XL20
+Toyota	Sienna	2011	2020	3	XL30	XL30
+Toyota	Sienna	2021	0	4	XL40	XL40
+Jeep	Wrangler	1987	1995	1	YJ	YJ
+Jeep	Wrangler	1997	2006	2	TJ	TJ
+Jeep	Wrangler	2007	2017	3	JK	JK
+Jeep	Wrangler	2018	0	4	JL	JL
+Tesla	Model 3	2017	0	1		1st generation
+Tesla	Model Y	2020	0	1		1st generation
+Tesla	Model S	2012	0	1		1st generation
+Tesla	Model X	2016	0	1		1st generation
+Dodge	Charger	2006	2010	6	LX	LX
+Dodge	Charger	2011	2023	7	LD	LD
+Dodge	Charger	2024	0	8	LB	LB
+Kia	Soul	2010	2013	1	AM	AM
+Kia	Soul	2014	2019	2	PS	PS
+Kia	Soul	2020	2025	3	SK3	SK3
+Lexus	RX	1999	2003	1	XU10	XU10
+Lexus	RX	2004	2009	2	XU30	XU30
+Lexus	RX	2010	2015	3	AL10	AL10
+Lexus	RX	2016	2022	4	AL20	AL20
+Lexus	RX	2023	0	5	AL30	AL30
+Chevrolet	Traverse	2009	2017	1	Lambda	1st generation
+Chevrolet	Traverse	2018	2023	2	C1XX	2nd generation
+Chevrolet	Traverse	2024	0	3	C1XX	3rd generation
+Kia	Optima	2001	2005	1	MS	MS
+Kia	Optima	2006	2010	2	MG	MG
+Kia	Optima	2011	2015	3	TF	TF
+Kia	Optima	2016	2020	4	JF	JF
+Kia	K5	2021	0	1	DL3	DL3
+GMC	Terrain	2010	2017	1	Theta	1st generation
+GMC	Terrain	2018	0	2	D2XX	2nd generation
+Jeep	Compass	2007	2016	1	MK	MK
+Jeep	Compass	2017	0	2	MP	MP
+Hyundai	Santa Fe	2001	2006	1	SM	SM
+Hyundai	Santa Fe	2007	2012	2	CM	CM
+Hyundai	Santa Fe	2013	2018	3	DM	DM
+Hyundai	Santa Fe	2019	2023	4	TM	TM
+Hyundai	Santa Fe	2024	0	5	MX5	MX5
+Kia	Sportage	1995	2002	1	JA	JA
+Kia	Sportage	2005	2010	2	KM	KM
+Kia	Sportage	2011	2016	3	SL	SL
+Kia	Sportage	2017	2022	4	QL	QL
+Kia	Sportage	2023	0	5	NQ5	NQ5
+Ford	Mustang	1979	1993	3	Fox	Fox body
+Ford	Mustang	1994	2004	4	SN95	SN95
+Ford	Mustang	2005	2014	5	S197	S197
+Ford	Mustang	2015	2023	6	S550	S550
+Ford	Mustang	2024	0	7	S650	S650
+Mazda	Mazda3	2004	2009	1	BK	BK
+Mazda	Mazda3	2010	2013	2	BL	BL
+Mazda	Mazda3	2014	2018	3	BM	BM
+Mazda	Mazda3	2019	0	4	BP	BP
+Mazda	CX-5	2013	2016	1	KE	KE
+Mazda	CX-5	2017	0	2	KF	KF
+Chevrolet	Trax	2013	2022	1	Gamma II	1st generation
+Chevrolet	Trax	2024	0	2	VSS-F	2nd generation
+Mercedes-Benz	C-Class	1994	2000	1	W202	W202
+Mercedes-Benz	C-Class	2001	2007	2	W203	W203
+Mercedes-Benz	C-Class	2008	2014	3	W204	W204
+Mercedes-Benz	C-Class	2015	2021	4	W205	W205
+Mercedes-Benz	C-Class	2022	0	5	W206	W206
+Chevrolet	Impala	2000	2005	8	W-body	8th generation
+Chevrolet	Impala	2006	2013	9	W-body	9th generation
+Chevrolet	Impala	2014	2020	10	Epsilon II	10th generation
+Toyota	Tundra	2000	2006	1	XK30	XK30
+Toyota	Tundra	2007	2021	2	XK50	XK50
+Toyota	Tundra	2022	0	3	XK70	XK70
+Dodge	Grand Caravan	2001	2007	4	RS	4th generation
+Dodge	Grand Caravan	2008	2020	5	RT	5th generation
+Nissan	Versa	2007	2011	1	C11	C11
+Nissan	Versa	2012	2019	2	N17	N17
+Nissan	Versa	2020	0	3	N18	N18
+GMC	Acadia	2007	2016	1	Lambda	1st generation
+GMC	Acadia	2017	2023	2	C1XX	2nd generation
+GMC	Acadia	2024	0	3	C1XX	3rd generation
+Toyota	4Runner	1996	2002	3	N180	N180
+Toyota	4Runner	2003	2009	4	N210	N210
+Toyota	4Runner	2010	2024	5	N280	N280
+Toyota	4Runner	2025	0	6	N300	N300
+Ford	F-250	1999	2007	1	Super Duty	1st Super Duty
+Ford	F-250	2008	2016	2	Super Duty	2nd Super Duty
+Ford	F-250	2017	2022	3	P558	3rd Super Duty
+Ford	F-250	2023	0	4	P702 HD	4th Super Duty
+Ford	F-350	1999	2007	1	Super Duty	1st Super Duty
+Ford	F-350	2008	2016	2	Super Duty	2nd Super Duty
+Ford	F-350	2017	2022	3	P558	3rd Super Duty
+Ford	F-350	2023	0	4	P702 HD	4th Super Duty
+Honda	HR-V	2016	2022	1	RU	1st generation
+Honda	HR-V	2023	0	2	RS	2nd generation
+Lexus	ES	1997	2001	3	XV20	XV20
+Lexus	ES	2002	2006	4	XV30	XV30
+Lexus	ES	2007	2012	5	XV40	XV40
+Lexus	ES	2013	2018	6	XV60	XV60
+Lexus	ES	2019	0	7	XZ10	XZ10
+Nissan	Pathfinder	1996	2004	2	R50	R50
+Nissan	Pathfinder	2005	2012	3	R51	R51
+Nissan	Pathfinder	2013	2020	4	R52	R52
+Nissan	Pathfinder	2022	0	5	R53	R53
+Chevrolet	Tahoe	1995	1999	1	GMT400	GMT400
+Chevrolet	Tahoe	2000	2006	2	GMT800	GMT800
+Chevrolet	Tahoe	2007	2014	3	GMT900	GMT900
+Chevrolet	Tahoe	2015	2020	4	K2XX	K2XX
+Chevrolet	Tahoe	2021	0	5	T1XX	T1XX
+GMC	Yukon	1995	1999	1	GMT400	GMT400
+GMC	Yukon	2000	2006	2	GMT800	GMT800
+GMC	Yukon	2007	2014	3	GMT900	GMT900
+GMC	Yukon	2015	2020	4	K2XX	K2XX
+GMC	Yukon	2021	0	5	T1XX	T1XX
+Chevrolet	Suburban	1992	1999	8	GMT400	GMT400
+Chevrolet	Suburban	2000	2006	9	GMT800	GMT800
+Chevrolet	Suburban	2007	2014	10	GMT900	GMT900
+Chevrolet	Suburban	2015	2020	11	K2XX	K2XX
+Chevrolet	Suburban	2021	0	12	T1XX	T1XX
+Dodge	Durango	1998	2003	1	DN	1st generation
+Dodge	Durango	2004	2009	2	HB	2nd generation
+Dodge	Durango	2011	0	3	WD	3rd generation
+Chevrolet	Colorado	2004	2012	1	GMT355	1st generation
+Chevrolet	Colorado	2015	2022	2	31XX	2nd generation
+Chevrolet	Colorado	2023	0	3	31XX-2	3rd generation
+GMC	Canyon	2004	2012	1	GMT355	1st generation
+GMC	Canyon	2015	2022	2	31XX	2nd generation
+GMC	Canyon	2023	0	3	31XX-2	3rd generation
+Subaru	Impreza	1993	2001	1	GC	GC
+Subaru	Impreza	2002	2007	2	GD	GD
+Subaru	Impreza	2008	2011	3	GE	GE/GH
+Subaru	Impreza	2012	2016	4	GJ	GJ/GP
+Subaru	Impreza	2017	2023	5	GK	GK/GT
+Subaru	Impreza	2024	0	6	GU	GU
+Mercedes-Benz	E-Class	1996	2002	1	W210	W210
+Mercedes-Benz	E-Class	2003	2009	2	W211	W211
+Mercedes-Benz	E-Class	2010	2016	3	W212	W212
+Mercedes-Benz	E-Class	2017	2023	4	W213	W213
+Mercedes-Benz	E-Class	2024	0	5	W214	W214
+Volkswagen	Tiguan	2009	2017	1	5N	1st generation
+Volkswagen	Tiguan	2018	2024	2	AD	2nd generation
+Volkswagen	Tiguan	2025	0	3	CV	3rd generation
+Chrysler	Pacifica	2004	2008	1	CS	CS crossover
+Chrysler	Pacifica	2017	0	2	RU	RU minivan
+Chrysler	Voyager	1996	2003	3	NS/RS	3rd generation
+Chrysler	Voyager	2020	0	6	RU	RU
+BMW	X5	2000	2006	1	E53	E53
+BMW	X5	2007	2013	2	E70	E70
+BMW	X5	2014	2018	3	F15	F15
+BMW	X5	2019	0	4	G05	G05
+BMW	X3	2004	2010	1	E83	E83
+BMW	X3	2011	2017	2	F25	F25
+BMW	X3	2018	2024	3	G01	G01
+BMW	X3	2025	0	4	G45	G45
+BMW	X1	2012	2015	1	E84	E84
+BMW	X1	2016	2022	2	F48	F48
+BMW	X1	2023	0	3	U11	U11
+BMW	X7	2019	0	1	G07	G07
+Nissan	Frontier	1998	2004	1	D22	D22
+Nissan	Frontier	2005	2021	2	D40	D40
+Nissan	Frontier	2022	0	3	D41	D41
+Subaru	Crosstrek	2013	2017	1	GP	GP
+Subaru	Crosstrek	2018	2023	2	GT	GT
+Subaru	Crosstrek	2024	0	3	GU	GU
+Nissan	Murano	2003	2007	1	Z50	Z50
+Nissan	Murano	2009	2014	2	Z51	Z51
+Nissan	Murano	2015	2024	3	Z52	Z52
+Nissan	Murano	2025	0	4	Z53	Z53
+Dodge	Challenger	2008	2023	3	LC	LC
+Volkswagen	Passat	1998	2005	1	B5	B5
+Volkswagen	Passat	2006	2010	2	B6	B6
+Volkswagen	Passat	2012	2022	3	NMS	NMS
+Nissan	Maxima	1995	1999	4	A32	A32
+Nissan	Maxima	2000	2003	5	A33	A33
+Nissan	Maxima	2004	2008	6	A34	A34
+Nissan	Maxima	2009	2014	7	A35	A35
+Nissan	Maxima	2016	2023	8	A36	A36
+Audi	Q5	2009	2017	1	8R	8R
+Audi	Q5	2018	0	2	FY	FY
+Audi	Q7	2007	2015	1	4L	4L
+Audi	Q7	2017	0	2	4M	4M
+Audi	A4	1996	2001	1	B5	B5
+Audi	A4	2002	2005	2	B6	B6
+Audi	A4	2006	2008	3	B7	B7
+Audi	A4	2009	2016	4	B8	B8
+Audi	A4	2017	0	5	B9	B9
+Audi	A6	1998	2004	1	C5	C5
+Audi	A6	2005	2011	2	C6	C6
+Audi	A6	2012	2018	3	C7	C7
+Audi	A6	2019	0	4	C8	C8
+Audi	A3	2006	2013	1	8P	8P
+Audi	A3	2015	2020	2	8V	8V
+Audi	A3	2022	0	3	8Y	8Y
+Chevrolet	Camaro	1993	2002	4	F-body	4th generation
+Chevrolet	Camaro	2010	2015	5	Zeta	5th generation
+Chevrolet	Camaro	2016	2024	6	Alpha	6th generation
+Acura	MDX	2001	2006	1	YD1	1st generation
+Acura	MDX	2007	2013	2	YD2	2nd generation
+Acura	MDX	2014	2020	3	YD3	3rd generation
+Acura	MDX	2022	0	4	YD4	4th generation
+Acura	RDX	2007	2012	1	TB1	1st generation
+Acura	RDX	2013	2018	2	TB3	2nd generation
+Acura	RDX	2019	0	3	TC1	3rd generation
+Chrysler	300	1999	2004	0	LH	300M (LH)
+Chrysler	300	2005	2010	1	LX	LX
+Chrysler	300	2011	2023	2	LD	LD
+Toyota	Avalon	1995	1999	1	XX10	XX10
+Toyota	Avalon	2000	2004	2	XX20	XX20
+Toyota	Avalon	2005	2012	3	XX30	XX30
+Toyota	Avalon	2013	2018	4	XX40	XX40
+Toyota	Avalon	2019	2022	5	XX50	XX50
+Ford	Ranger	1998	2011	3	PN96	3rd generation
+Ford	Ranger	2019	2023	4	T6	4th generation
+Ford	Ranger	2024	0	5	P703	5th generation
+Chrysler	Town and Country	1996	2000	3	NS	3rd generation
+Chrysler	Town and Country	2001	2007	4	RS	4th generation
+Chrysler	Town and Country	2008	2016	5	RT	5th generation
+Buick	Enclave	2008	2017	1	Lambda	1st generation
+Buick	Enclave	2018	2024	2	C1XX	2nd generation
+Buick	Enclave	2025	0	3	C1XX	3rd generation
+Jeep	Renegade	2015	2023	1	BU	BU
+Hyundai	Accent	2000	2005	2	LC	LC
+Hyundai	Accent	2006	2011	3	MC	MC
+Hyundai	Accent	2012	2017	4	RB	RB
+Hyundai	Accent	2018	2022	5	HC	HC
+Buick	Encore	2013	2022	1	Gamma II	1st generation
+Buick	Encore GX	2020	0	1	VSS-F	1st generation
+Subaru	Legacy	2000	2004	3	BE	BE/BH
+Subaru	Legacy	2005	2009	4	BL	BL/BP
+Subaru	Legacy	2010	2014	5	BM	BM/BR
+Subaru	Legacy	2015	2019	6	BN	BN
+Subaru	Legacy	2020	2025	7	BW	BW
+Lexus	IS	2001	2005	1	XE10	XE10
+Lexus	IS	2006	2013	2	XE20	XE20
+Lexus	IS	2014	0	3	XE30	XE30
+Mitsubishi	Outlander	2003	2006	1	CU	1st generation
+Mitsubishi	Outlander	2007	2013	2	CW	2nd generation
+Mitsubishi	Outlander	2014	2021	3	GF	3rd generation
+Mitsubishi	Outlander	2022	0	4	GN	4th generation
+Hyundai	Kona	2018	2023	1	OS	OS
+Hyundai	Kona	2024	0	2	SX2	SX2
+Ford	Taurus	1996	1999	3	DN101	3rd generation
+Ford	Taurus	2000	2007	4	DN101	4th generation
+Ford	Taurus	2008	2009	5	D258	5th generation
+Ford	Taurus	2010	2019	6	D3	6th generation
+Honda	Fit	2007	2008	1	GD	1st generation
+Honda	Fit	2009	2014	2	GE	2nd generation
+Honda	Fit	2015	2020	3	GK	3rd generation
+Chrysler	200	2011	2014	1	JS	1st generation
+Chrysler	200	2015	2017	2	CU	2nd generation
+Infiniti	Q50	2014	0	1	V37	V37
+Nissan	Kicks	2018	2024	1	P15	P15
+Nissan	Kicks	2025	0	2	P16	P16
+Jeep	Patriot	2007	2017	1	MK	MK
+Mitsubishi	Outlander Sport	2011	2024	1	GA	GA
+Ford	Expedition	1997	2002	1	UN93	1st generation
+Ford	Expedition	2003	2006	2	U222	2nd generation
+Ford	Expedition	2007	2017	3	U324	3rd generation
+Ford	Expedition	2018	0	4	U553	4th generation
+Mazda	Mazda6	2003	2008	1	GG	GG
+Mazda	Mazda6	2009	2013	2	GH	GH
+Mazda	Mazda6	2014	2021	3	GJ	GJ
+Ford	Transit Connect	2010	2013	1	V227	1st generation
+Ford	Transit Connect	2014	2023	2	V408	2nd generation
+Ford	Fiesta	2011	2019	6	B299	6th generation
+Kia	Rio	2006	2011	2	JB	JB
+Kia	Rio	2012	2017	3	UB	UB
+Kia	Rio	2018	2023	4	YB	YB
+Mercedes-Benz	GLC-Class	2016	2022	1	X253	X253
+Mercedes-Benz	GLC-Class	2023	0	2	X254	X254
+Mercedes-Benz	GLE-Class	2016	2019	1	W166	W166
+Mercedes-Benz	GLE-Class	2020	0	2	W167	W167
+Infiniti	QX60	2014	2020	1	L50	L50
+Infiniti	QX60	2022	0	2	L51	L51
+Ford	Bronco Sport	2021	0	1	CX430	1st generation
+Buick	LaCrosse	2005	2009	1	W-body	1st generation
+Buick	LaCrosse	2010	2016	2	Epsilon II	2nd generation
+Buick	LaCrosse	2017	2019	3	P2XX	3rd generation
+Volkswagen	Atlas	2018	0	1	MQB	1st generation
+Cadillac	SRX	2004	2009	1	Sigma	1st generation
+Cadillac	SRX	2010	2016	2	Theta	2nd generation
+Hyundai	Palisade	2020	2025	1	LX2	LX2
+Hyundai	Palisade	2026	0	2	LX3	LX3
+Volvo	XC90	2003	2014	1	P2	1st generation
+Volvo	XC90	2016	0	2	SPA	2nd generation
+Volvo	XC60	2010	2017	1	P3	1st generation
+Volvo	XC60	2018	0	2	SPA	2nd generation
+Volvo	S60	2001	2009	1	P2	1st generation
+Volvo	S60	2011	2018	2	P3	2nd generation
+Volvo	S60	2019	0	3	SPA	3rd generation
+Kia	Telluride	2020	0	1	ON	ON
+Lincoln	MKZ	2007	2012	1	CD3	1st generation
+Lincoln	MKZ	2013	2020	2	CD4	2nd generation
+Lexus	NX	2015	2021	1	AZ10	AZ10
+Lexus	NX	2022	0	2	AZ20	AZ20
+Nissan	Titan	2004	2015	1	A60	A60
+Nissan	Titan	2016	2024	2	A61	A61
+Cadillac	CTS	2003	2007	1	Sigma	1st generation
+Cadillac	CTS	2008	2013	2	Sigma II	2nd generation
+Cadillac	CTS	2014	2019	3	Alpha	3rd generation
+Cadillac	Escalade	2002	2006	2	GMT800	GMT800
+Cadillac	Escalade	2007	2014	3	GMT900	GMT900
+Cadillac	Escalade	2015	2020	4	K2XX	K2XX
+Cadillac	Escalade	2021	0	5	T1XX	T1XX
+Chevrolet	Sonic	2012	2020	1	Gamma II	1st generation
+Mazda	CX-9	2007	2015	1	TB	TB
+Mazda	CX-9	2016	2023	2	TC	TC
+Acura	TLX	2015	2020	1	UB1	1st generation
+Acura	TLX	2021	0	2	UB5	2nd generation
+Toyota	Yaris	2007	2011	1	XP90	XP90
+Toyota	Yaris	2012	2019	2	XP130	XP130
+GMC	Yukon XL	2000	2006	1	GMT800	GMT800
+GMC	Yukon XL	2007	2014	2	GMT900	GMT900
+GMC	Yukon XL	2015	2020	3	K2XX	K2XX
+GMC	Yukon XL	2021	0	4	T1XX	T1XX
+Honda	Ridgeline	2006	2014	1	YK1	1st generation
+Honda	Ridgeline	2017	0	2	YK2	2nd generation
+Mercedes-Benz	CLA-Class	2014	2019	1	C117	C117
+Mercedes-Benz	CLA-Class	2020	0	2	C118	C118
+Mercedes-Benz	S-Class	2000	2006	1	W220	W220
+Mercedes-Benz	S-Class	2007	2013	2	W221	W221
+Mercedes-Benz	S-Class	2014	2020	3	W222	W222
+Mercedes-Benz	S-Class	2021	0	4	W223	W223
+Acura	TL	1999	2003	3	UA5	3rd generation
+Acura	TL	2004	2008	4	UA6	4th generation
+Acura	TL	2009	2014	5	UA8	5th generation
+Ford	Maverick	2022	0	1	P758	1st generation
+Lexus	GX	2003	2009	1	J120	J120
+Lexus	GX	2010	2023	2	J150	J150
+Lexus	GX	2024	0	3	J250	J250
+Mercedes-Benz	Sprinter	2010	2018	2	906	906
+Mercedes-Benz	Sprinter	2019	0	3	907	907
+Nissan	Armada	2004	2015	1	TA60	TA60
+Nissan	Armada	2017	2024	2	Y62	Y62
+Cadillac	XT5	2017	0	1	C1XX	1st generation
+Mazda	CX-30	2020	0	1	DM	DM
+Kia	Sedona	2002	2005	1	UP	UP
+Kia	Sedona	2006	2014	2	VQ	VQ
+Kia	Sedona	2015	2021	3	YP	YP
+Kia	Carnival	2022	0	4	KA4	KA4
+Dodge	Dart	2013	2016	1	PF	PF
+Lincoln	MKX	2007	2015	1	CD3	1st generation
+Lincoln	MKX	2016	2018	2	CD4	2nd generation
+Subaru	WRX	2015	2021	1	VA	VA
+Subaru	WRX	2022	0	2	VB	VB
+MINI	Hardtop	2007	2013	2	R56	R56
+MINI	Hardtop	2014	0	3	F56	F56
+MINI	Countryman	2011	2016	1	R60	R60
+MINI	Countryman	2017	2024	2	F60	F60
+Porsche	Cayenne	2003	2010	1	955	955/957
+Porsche	Cayenne	2011	2018	2	958	958
+Porsche	Cayenne	2019	0	3	9YA	9YA
+Porsche	Macan	2015	0	1	95B	95B
+Jeep	Liberty	2002	2007	1	KJ	KJ
+Jeep	Liberty	2008	2012	2	KK	KK
+Chevrolet	Corvette	1984	1996	4	C4	C4
+Chevrolet	Corvette	1997	2004	5	C5	C5
+Chevrolet	Corvette	2005	2013	6	C6	C6
+Chevrolet	Corvette	2014	2019	7	C7	C7
+Chevrolet	Corvette	2020	0	8	C8	C8
+Toyota	Sequoia	2001	2007	1	XK30	XK30
+Toyota	Sequoia	2008	2022	2	XK60	XK60
+Toyota	Sequoia	2023	0	3	XK80	XK80
+Subaru	Ascent	2019	0	1	WM	WM
+Ford	Flex	2009	2019	1	D4	1st generation
+Volkswagen	Beetle	1998	2010	1	A4	A4
+Volkswagen	Beetle	2012	2019	2	A5	A5
+Volkswagen	Golf	1999	2006	4	A4	Mk4
+Volkswagen	Golf	2010	2014	6	A6	Mk6
+Volkswagen	Golf	2015	2021	7	A7	Mk7
+Lexus	GS	1998	2005	2	S160	S160
+Lexus	GS	2006	2011	3	S190	S190
+Lexus	GS	2013	2020	4	L10	L10
+Lexus	LS	1995	2000	2	XF20	XF20
+Lexus	LS	2001	2006	3	XF30	XF30
+Lexus	LS	2007	2017	4	XF40	XF40
+Lexus	LS	2018	2024	5	XF50	XF50
+Cadillac	ATS	2013	2018	1	Alpha	1st generation
+Acura	TSX	2004	2008	1	CL9	1st generation
+Acura	TSX	2009	2014	2	CU2	2nd generation
+Nissan	Juke	2011	2017	1	F15	F15
+Mercedes-Benz	GLK-Class	2010	2015	1	X204	X204
+Chevrolet	Volt	2011	2015	1	Delta II	1st generation
+Chevrolet	Volt	2016	2019	2	D2XX	2nd generation
+Toyota	C-HR	2018	2022	1	AX10	AX10
+Acura	ILX	2013	2022	1	DE	DE
+Land Rover	Range Rover Evoque	2012	2019	1	L538	L538
+Land Rover	Range Rover Evoque	2020	0	2	L551	L551
+Hyundai	Veloster	2012	2017	1	FS	FS
+Hyundai	Veloster	2019	2021	2	JS	JS
+Mitsubishi	Mirage	2014	2024	6	A00	6th generation
+Buick	Verano	2012	2017	1	Delta II	1st generation
+Ford	Bronco	1992	1996	5		5th generation
+Ford	Bronco	2021	0	6	U725	6th generation
+Mercedes-Benz	GLS-Class	2017	2019	1	X166	X166
+Mercedes-Benz	GLS-Class	2020	0	2	X167	X167
+Buick	Regal	1997	2004	4	W-body	4th generation
+Buick	Regal	2011	2017	5	Epsilon II	5th generation
+Buick	Regal	2018	2020	6	E2XX	6th generation
+Dodge	Avenger	2008	2014	2	JS	2nd generation
+Jaguar	F-PACE	2017	0	1	X761	X761
+Hyundai	Genesis	2009	2014	1	BH	BH
+Hyundai	Genesis	2015	2016	2	DH	DH
+Infiniti	QX50	2014	2017	1	J50	J50
+Infiniti	QX50	2019	2025	2	P71A	P71A
+Cadillac	XTS	2013	2019	1	Epsilon II	1st generation
+Infiniti	QX80	2014	2024	1	Y62	Y62
+Infiniti	QX80	2025	0	2	Z62	Z62
+Jeep	Gladiator	2020	0	1	JT	JT
+Nissan	Leaf	2011	2017	1	ZE0	ZE0
+Nissan	Leaf	2018	2025	2	ZE1	ZE1
+Mitsubishi	Eclipse Cross	2018	0	1	GK	GK
+Ford	Mustang Mach-E	2021	0	1	CX727	1st generation
+Dodge	Dakota	1987	1996	1		1st generation
+Dodge	Dakota	1997	2004	2		2nd generation
+Dodge	Dakota	2005	2011	3		3rd generation
+Ford	C-Max	2013	2018	2	C344	2nd generation
+Land Rover	Discovery Sport	2015	0	1	L550	L550
+Lincoln	MKC	2015	2019	1	C520	1st generation
+Mazda	CX-50	2023	0	1	KK	KK
+Chevrolet	Cobalt	2005	2010	1	Delta	1st generation
+Honda	Insight	2000	2006	1	ZE1	1st generation
+Honda	Insight	2010	2014	2	ZE2	2nd generation
+Honda	Insight	2019	2022	3	ZE4	3rd generation
+Nissan	Xterra	2000	2004	1	WD22	WD22
+Nissan	Xterra	2005	2015	2	N50	N50
+Buick	Lucerne	2006	2011	1	H-body	1st generation
+Lincoln	Navigator	1998	2002	1	UN173	1st generation
+Lincoln	Navigator	2003	2006	2	U228	2nd generation
+Lincoln	Navigator	2007	2017	3	U326	3rd generation
+Lincoln	Navigator	2018	0	4	U554	4th generation
+Honda	Passport	1994	2002	1	UA	1st generation
+Honda	Passport	2019	0	2	YF7	2nd generation
+Fiat	500	2012	2019	2	312	2nd generation
+Mercedes-Benz	M-Class	1998	2005	1	W163	W163
+Mercedes-Benz	M-Class	2006	2011	2	W164	W164
+Mercedes-Benz	ML-Class	2012	2015	3	W166	W166
+Honda	Element	2003	2011	1	YH2	1st generation
+Mitsubishi	Lancer	2002	2007	8	CS	8th generation
+Mitsubishi	Lancer	2008	2017	9	CY	9th generation
+Chevrolet	Avalanche	2002	2006	1	GMT800	GMT800
+Chevrolet	Avalanche	2007	2013	2	GMT900	GMT900
+Infiniti	G35	2003	2007	1	V35	V35
+Infiniti	G37	2008	2013	2	V36	V36
+Mazda	MX-5	1990	1997	1	NA	NA
+Mazda	MX-5	1999	2005	2	NB	NB
+Mazda	MX-5	2006	2015	3	NC	NC
+Mazda	MX-5	2016	0	4	ND	ND
+Hyundai	Ioniq	2017	2022	1	AE	AE
+Chevrolet	Bolt EV	2017	2023	1	BEV2	1st generation
+Kia	Stinger	2018	2023	1	CK	CK
+Hyundai	Santa Cruz	2022	0	1	NX4	NX4
+Alfa Romeo	Stelvio	2018	0	1	949	949
+Chevrolet	HHR	2006	2011	1	Delta	1st generation
+Acura	Integra	1994	2001	3	DC	3rd generation
+Acura	Integra	2023	0	5	DE4	5th generation
+Mercury	Grand Marquis	1998	2011	3	Panther	3rd generation
+Pontiac	Vibe	2003	2008	1	E130	1st generation
+Pontiac	Vibe	2009	2010	2	E140	2nd generation
+Lexus	CT	2011	2017	1	ZWA10	ZWA10
+Cadillac	XT4	2019	0	1	E2XX	1st generation
+Toyota	Venza	2009	2016	1	AV10	1st generation
+Toyota	Venza	2021	2024	2	AXUH	2nd generation
+Chevrolet	Blazer	1995	2005	2	GMT330	2nd generation
+Chevrolet	Blazer	2019	0	3	C1XX	3rd generation
+Chevrolet	Trailblazer	2002	2009	1	GMT360	1st generation
+Chevrolet	Trailblazer	2021	0	2	VSS-F	2nd generation
+Jeep	Grand Cherokee L	2021	0	1	WL	WL
+Land Rover	Range Rover	2003	2012	3	L322	L322
+Land Rover	Range Rover	2013	2021	4	L405	L405
+Land Rover	Range Rover	2022	0	5	L460	L460
+Land Rover	Range Rover Sport	2006	2013	1	L320	L320
+Land Rover	Range Rover Sport	2014	2022	2	L494	L494
+Land Rover	Range Rover Sport	2023	0	3	L461	L461
+Land Rover	Range Rover Velar	2018	0	1	L560	L560
+Kia	Niro	2017	2022	1	DE	DE
+Kia	Niro	2023	0	2	SG2	SG2
+Kia	Seltos	2021	0	1	SP2	SP2
+Kia	EV6	2022	0	1	CV	CV
+Hyundai	Ioniq 5	2022	0	1	NE	NE
+Mercedes-Benz	GLA-Class	2015	2020	1	X156	X156
+Mercedes-Benz	GLA-Class	2021	0	2	H247	H247
+Mercedes-Benz	GLB-Class	2020	0	1	X247	X247
+Mercedes-Benz	GL-Class	2007	2012	1	X164	X164
+Mercedes-Benz	GL-Class	2013	2016	2	X166	X166
+Audi	Q3	2015	2018	1	8U	8U
+Audi	Q3	2019	0	2	F3	F3
+Audi	A5	2008	2017	1	8T	8T
+Audi	A5	2018	0	2	F5	F5
+Buick	Envision	2016	2020	1	C1XX	1st generation
+Buick	Envision	2021	0	2	E2XX	2nd generation
+Toyota	Prius C	2012	2019	1	NHP10	NHP10
+Toyota	Prius V	2012	2017	1	ZVW40	ZVW40
+Chevrolet	Spark	2013	2022	1	M300	1st generation
+Nissan	NV200	2013	2021	1	M20	M20
+Nissan	Versa Note	2014	2019	1	E12	E12
+Ford	Ecosport	2018	2022	1	BK	BK
+Toyota	Corolla Cross	2022	0	1	XG10	XG10
+Mitsubishi	Mirage G4	2017	2024	1	A10	A10
+Lincoln	Nautilus	2019	2023	1	CD4	1st generation
+Lincoln	Nautilus	2024	0	2	CD6	2nd generation
+Cadillac	Escalade ESV	2002	2006	2	GMT800	GMT800
+Toyota	Grand Highlander	2024	0	1	XU80	XU80
+Mazda	CX-90	2024	0	1	KK	KK
+Ford	Transit	2015	0	4	V363	4th generation
+Dodge	Ram	1994	2001	2	BR/BE	2nd generation
+Dodge	Ram	2002	2008	3	DR/DH	3rd generation
+Dodge	Ram	2009	2012	4	DS	4th generation
+Dodge	Journey	2009	2020	1	JC	1st generation
+Chevrolet	Express	1996	0	1	GMT600	1st generation
+GMC	Savana	1996	0	1	GMT600	1st generation
+Hyundai	Santa Fe Sport	2013	2018	1	DM	DM
+Nissan	Rogue Sport	2017	2022	1	J11	J11
+Kia	K4	2025	0	1	CL4	CL4
+Ram	ProMaster 1500	2014	0	1	VF	VF
+Ram	ProMaster 2500	2014	0	1	VF	VF
+Ram	ProMaster 3500	2014	0	1	VF	VF
+Ram	Promaster City	2015	2022	1	327	327
+Chevrolet	Silverado HD	2015	2019	1	K2XX HD	K2XX HD
+Chevrolet	Silverado HD	2020	0	2	T1XX HD	T1XX HD
+GMC	Sierra HD	2015	2019	1	K2XX HD	K2XX HD
+GMC	Sierra HD	2020	0	2	T1XX HD	T1XX HD
+Toyota	Corolla Matrix	2003	2008	1	E130	E130
+Toyota	Corolla Matrix	2009	2013	2	E140	E140
+Ford	Expedition MAX	2007	2017	3	U324	3rd generation
+Ford	Expedition MAX	2018	0	4	U553	4th generation
+Hyundai	Venue	2020	0	1	QX	QX
+Subaru	XV CrossTrek	2013	2015	1	GP	GP
+Volkswagen	Taos	2022	0	1	CL	CL
+Toyota	Scion tC	2005	2010	1	AT10	AT10
+Toyota	Scion tC	2011	2016	2	AGT20	AGT20
+Toyota	Scion xB	2004	2006	1	NCP30	NCP30
+Toyota	Scion xB	2008	2015	2	AZE151	AZE151
+Nissan	Kicks MPV	2025	0	2	P16	P16
+Toyota	Prius Prime (PHEV)	2017	2022	1	XW50	XW50
+Toyota	Prius Prime (PHEV)	2023	0	2	XW60	XW60
+Nissan	NV	2012	2021	1	F80	F80
+Ford	E-250	1992	2014	4	VN	4th generation
+Ford	E-350	1992	2024	4	VN	4th generation
+Buick	Envista	2024	0	1	VSS-F	1st generation
+Chevrolet	Cruze Limited	2016	2016	1	J300	1st generation
+Dodge	Caravan/Grand Caravan	1996	2000	3	NS	3rd generation
+Dodge	Caravan/Grand Caravan	2001	2008	4	RS	4th generation
+Volkswagen	Atlas Cross Sport	2020	0	1	MQB	1st generation
+Chevrolet	Impala Limited	2014	2016	9	W-body	9th generation
+BMW	X6	2008	2014	1	E71	E71
+BMW	X6	2015	2019	2	F16	F16
+BMW	X6	2020	0	3	G06	G06
+BMW	X4	2015	2018	1	F26	F26
+BMW	X4	2019	0	2	G02	G02
+Volkswagen	Golf GTI	2015	2021	7	A7	Mk7
+Volkswagen	Golf GTI	2022	0	8	A8	Mk8
+Volkswagen	GTI	2000	2005	4	A4	Mk4
+Volkswagen	GTI	2006	2009	5	A5	Mk5
+Volkswagen	GTI	2010	2014	6	A6	Mk6
+Volkswagen	GTI	2015	2021	7	A7	Mk7
+Volkswagen	GTI	2022	0	8	A8	Mk8
+Toyota	Camry Solara	1999	2003	1	XV20	XV20
+Toyota	Camry Solara	2004	2008	2	XV30	XV30
+Alfa Romeo	Giulia (952)	2017	0	1	952	952
+Volvo	XC40	2019	0	1	CMA	1st generation
+Pontiac	G6	2005	2010	1	Epsilon	1st generation
+Porsche	Panamera	2010	2016	1	970	970
+Porsche	Panamera	2017	2023	2	971	971
+Porsche	Panamera	2024	0	3	972	972
+Mercedes-Benz	A-Class	2019	2022	1	W177	W177
+Mazda	CX-3	2016	2022	1	DK	DK
+Lincoln	Corsair	2020	0	1	CX483	1st generation
+Maserati	Ghibli	2014	2024	3	M157	3rd generation
+Mercedes-Benz	CLS-Class	2006	2011	1	W219	W219
+Mercedes-Benz	CLS-Class	2012	2018	2	W218	W218
+Mercedes-Benz	CLS-Class	2019	2023	3	C257	C257
+GMC	Envoy	2002	2009	1	GMT360	1st generation
+Lincoln	Town Car	1998	2011	3	Panther	3rd generation
+Land Rover	Discovery	1999	2004	2	Series II	Series II
+Land Rover	Discovery	2005	2016	3	L319	L319 (LR3/LR4)
+Land Rover	Discovery	2017	2024	4	L462	L462
+Genesis	G70	2019	0	1	IK	IK
+Genesis	G80	2017	2020	1	DH	DH
+Genesis	G80	2021	0	2	RG3	RG3
+Chevrolet	S-10 Pickup	1994	2004	2	GMT325	2nd generation
+Infiniti	Q60	2014	2015	1	V36	V36
+Infiniti	Q60	2017	2022	2	CV37	CV37
+Audi	S5	2008	2017	1	8T	8T
+Audi	S5	2018	0	2	F5	F5
+Audi	A7	2012	2018	1	4G	4G
+Audi	A7	2019	0	2	4K	4K
+Toyota	FJ Cruiser	2007	2014	1	XJ10	XJ10
+Cadillac	XT6	2020	0	1	C1XX	1st generation
+Buick	LeSabre	1992	1999	7	H-body	7th generation
+Buick	LeSabre	2000	2005	8	H-body	8th generation
+Ford	Explorer Sport Trac	2001	2005	1	U152	1st generation
+Ford	Explorer Sport Trac	2007	2010	2	U251	2nd generation
+Mazda	Mazda5	2006	2010	1	CR	CR
+Mazda	Mazda5	2012	2015	2	CW	CW
+Lincoln	Aviator	2003	2005	1	U152	1st generation
+Lincoln	Aviator	2020	0	2	CD6	2nd generation
+BMW	328i	1996	1999	1	E36	E36
+BMW	328i	2000	2006	2	E46	E46
+BMW	328i	2007	2011	3	E90	E90
+BMW	328i	2012	2016	4	F30	F30
+BMW	330i	2001	2006	1	E46	E46
+BMW	330i	2007	2013	2	E90	E90
+BMW	330i	2019	0	3	G20	G20
+BMW	320i	2013	2018	1	F30	F30
+BMW	335i	2007	2011	1	E90	E90
+BMW	335i	2012	2016	2	F30	F30
+BMW	528i	1998	2003	1	E39	E39
+BMW	528i	2008	2010	2	E60	E60
+BMW	528i	2011	2016	3	F10	F10
+BMW	530i	2001	2003	1	E39	E39
+BMW	530i	2004	2007	2	E60	E60
+BMW	530i	2017	0	3	G30	G30
+BMW	535i	1991	1993	1	E34	E34
+BMW	535i	2008	2010	2	E60	E60
+BMW	535i	2011	2017	3	F10	F10
+BMW	540i	1995	2003	1	E39	E39
+BMW	540i	2017	0	2	G30	G30
+BMW	428i	2014	2016	1	F32	F32
+BMW	430i	2017	2020	1	F32	F32
+BMW	430i	2021	0	2	G22	G22
+BMW	330i	2017	2018	4	F30	F30
+Volkswagen	Touareg	2004	2010	1	7L	7L
+Volkswagen	Touareg	2011	2017	2	7P	7P
+Chevrolet	Malibu Limited	2016	2016	8	Epsilon II	8th generation
+Chevrolet	Silverado LTD	2022	2022	3	K2XX	K2XX
+Audi	SQ5	2014	2017	1	8R	8R
+Audi	SQ5	2018	0	2	FY	FY
+Jaguar	XF	2009	2015	1	X250	X250
+Jaguar	XF	2016	0	2	X260	X260
+Volkswagen	Jetta SportWagen	2009	2014	5	A5	Mk5
+Infiniti	QX56	2004	2010	1	JA60	JA60
+Infiniti	QX56	2011	2013	2	Y62	Y62
+Genesis	GV70	2022	0	1	JK1	JK1
+Genesis	GV80	2021	0	1	JX1	JX1
+Cadillac	Escalade ESV	2007	2014	3	GMT900	GMT900
+Cadillac	Escalade ESV	2015	2020	4	K2XX	K2XX
+Cadillac	Escalade ESV	2021	0	5	T1XX	T1XX
+Volkswagen	ID.4	2021	0	1	MEB	1st generation
+Saturn	Vue	2002	2007	1	Theta	1st generation
+Saturn	Vue	2008	2010	2	Theta	2nd generation
+Hyundai	Genesis Coupe	2010	2016	1	BK	BK
+Chrysler	PT Cruiser	2001	2010	1	PT	PT
+# BMW names its models after the engine variant, so a generation entry is
+# needed per variant. The generation itself is the chassis code of the series.
+BMW	318i	1992	1998	1	E36	E36
+BMW	318iS	1992	1998	1	E36	E36
+BMW	318iC	1994	1999	1	E36	E36
+BMW	323i	1999	2000	1	E46	E46
+BMW	325/325eS	1984	1991	1	E30	E30
+BMW	325ix	1988	1991	1	E30	E30
+BMW	325iC	1987	1993	1	E30	E30
+BMW	325iC	1994	1995	2	E36	E36
+BMW	325i	2001	2006	1	E46	E46
+BMW	325Ci	1999	2006	1	E46	E46
+BMW	325xi	2001	2006	1	E46	E46
+BMW	328iC	1996	1999	1	E36	E36
+BMW	328iS	1996	1999	1	E36	E36
+BMW	328Ci	1999	2000	1	E46	E46
+BMW	328xi	2007	2008	1	E90	E90
+BMW	328d	2014	2018	1	F30	F30
+BMW	330Ci	2001	2006	1	E46	E46
+BMW	330xi	2001	2006	1	E46	E46
+BMW	335	2014	2014	1	F30	F30
+BMW	335xi	2007	2008	1	E90	E90
+BMW	335d	2009	2011	1	E90	E90
+BMW	335is	2011	2013	1	E92	E92
+BMW	340i	2016	2018	1	F30	F30
+BMW	340i	2019	2024	2	G20	G20
+BMW	M340i	2020	0	1	G20	G20
+BMW	M3	2001	2006	1	E46	E46
+BMW	M3	2008	2013	2	E90/E92	E90/E92
+BMW	M3	2015	2020	3	F80	F80
+BMW	M3	2021	0	4	G80	G80
+BMW	M3Ci	2001	2006	1	E46	E46
+BMW	128i	2008	2013	1	E82	E82
+BMW	135i	2008	2013	1	E82	E82
+BMW	228i	2014	2021	1	F22	F22
+BMW	228i	2022	0	2	G42	G42
+BMW	228	2026	0	2	G42	G42
+BMW	230i	2017	2021	1	F22	F22
+BMW	230i	2022	0	2	G42	G42
+BMW	M235i	2014	2016	1	F22	F22
+BMW	M235i	2020	0	2	F44	F44
+BMW	M235	2025	0	2	F44	F44
+BMW	M240i	2017	2021	1	F22	F22
+BMW	M240i	2022	0	2	G42	G42
+BMW	M2	2016	2021	1	F87	F87
+BMW	M2	2023	0	2	G87	G87
+BMW	435i	2014	2016	1	F32	F32
+BMW	440i	2017	2020	1	F32	F32
+BMW	M440i	2021	0	1	G22	G22
+BMW	M4	2015	2020	1	F82	F82
+BMW	M4	2021	0	2	G82	G82
+BMW	525i	1989	1995	1	E34	E34
+BMW	525i	1997	2003	2	E39	E39
+BMW	525i	2004	2007	3	E60	E60
+BMW	525iA	1997	2003	2	E39	E39
+BMW	525xi	2006	2007	3	E60	E60
+BMW	528e	1984	1988	1	E28	E28
+BMW	528xi	2008	2010	1	E60	E60
+BMW	528xi	2011	2016	2	F10	F10
+BMW	530iA	1997	2003	1	E39	E39
+BMW	530xi	2006	2007	1	E60	E60
+BMW	530e	2018	2023	1	G30	G30
+BMW	535xi	2008	2010	1	E60	E60
+BMW	535d	2014	2016	1	F10	F10
+BMW	540iA	1997	2003	1	E39	E39
+BMW	540d	2017	2023	1	G30	G30
+BMW	545i	2004	2005	1	E60	E60
+BMW	550i	2006	2010	1	E60	E60
+BMW	550i	2011	2016	2	F10	F10
+BMW	550i	2017	2019	3	G30	G30
+BMW	550e	2024	0	1	G60	G60
+BMW	M550i	2018	2023	1	G30	G30
+BMW	M5	2000	2003	1	E39	E39
+BMW	M5	2006	2010	2	E60	E60
+BMW	M5	2013	2016	3	F10	F10
+BMW	M5	2018	2023	4	F90	F90
+BMW	M5	2025	0	5	G90	G90
+BMW	i5	2024	0	1	G60	G60
+BMW	ActiveHybrid 5	2012	2013	1	F10	F10
+BMW	633 csi	1983	1989	1	E24	E24
+BMW	645Ci	2004	2005	1	E63	E63
+BMW	645i	2004	2005	1	E63	E63
+BMW	650i	2006	2010	1	E63	E63
+BMW	650i	2012	2019	2	F12/F13	F12/F13
+BMW	650xi	2012	2019	2	F12/F13	F12/F13
+BMW	650i, Alpina B6	2012	2016	2	F12/F13	F12/F13 (Alpina B6)
+BMW	650i, B6	2017	2019	2	F12/F13	F12/F13 (Alpina B6)
+BMW	640i	2012	2019	1	F12/F13	F12/F13
+BMW	640xi	2012	2019	1	F12/F13	F12/F13
+BMW	M6	2006	2010	1	E63	E63
+BMW	M6	2012	2017	2	F12/F13	F12/F13
+BMW	735i	1988	1994	1	E32	E32
+BMW	735iL	1988	1994	1	E32	E32
+BMW	740i	1993	2001	1	E38	E38
+BMW	740i	2002	2008	2	E65	E65
+BMW	740i	2011	2015	3	F01	F01
+BMW	740i	2016	2022	4	G11	G11
+BMW	740i	2023	0	5	G70	G70
+BMW	740iL	1995	2001	1	E38	E38
+BMW	740Li	2011	2015	1	F01	F01
+BMW	740Li	2016	2022	2	G11	G11
+BMW	740e	2017	2019	1	G11	G11
+BMW	745i	2002	2005	1	E65	E65
+BMW	745Li	2002	2005	1	E65	E65
+BMW	745e	2020	2022	1	G11	G11
+BMW	745Le	2020	2022	1	G11	G11
+BMW	750i	2006	2008	1	E65	E65
+BMW	750i	2009	2015	2	F01	F01
+BMW	750i	2016	2022	3	G11	G11
+BMW	750i, Alpina B7	2012	2015	2	F01	F01 (Alpina B7)
+BMW	750i, B7	2016	2022	3	G11	G11 (Alpina B7)
+BMW	750Li	2006	2008	1	E65	E65
+BMW	750Li	2009	2015	2	F01	F01
+BMW	750Li	2016	2022	3	G11	G11
+BMW	750Li, Alpina B7	2012	2015	2	F01	F01 (Alpina B7)
+BMW	750xi	2009	2015	1	F01	F01
+BMW	750Lxi	2009	2015	1	F01	F01
+BMW	750xi, Alpina B7	2012	2015	1	F01	F01 (Alpina B7)
+BMW	750Lxi, Alpina B7	2012	2015	1	F01	F01 (Alpina B7)
+BMW	750e	2023	0	1	G70	G70
+BMW	760i	2023	0	1	G70	G70
+BMW	760Li	2003	2008	1	E65	E65
+BMW	M760i	2017	2022	1	G11	G11
+BMW	B7	2016	2022	1	G11	G11 (Alpina B7)
+BMW	i7	2023	0	1	G70	G70
+BMW	840i	2019	0	1	G15	G15
+BMW	850i	2019	0	1	G15	G15
+BMW	M850i	2019	0	1	G15	G15
+BMW	M8	2020	0	1	F91/F92	F91/F92
+BMW	Z3	1996	2002	1	E36/7	E36/7
+BMW	Z4	2003	2008	1	E85	E85
+BMW	Z4	2009	2016	2	E89	E89
+BMW	Z4	2019	0	3	G29	G29
+BMW	Z8	2000	2003	1	E52	E52
+BMW	i3	2014	2021	1	I01	I01
+BMW	i4	2022	0	1	G26	G26
+BMW	i8	2014	2019	1	I12	I12
+BMW	iX	2022	0	1	I20	I20
+BMW	XM	2023	0	1	G09	G09
+BMW	X2	2018	2023	1	F39	F39
+BMW	X2	2024	0	2	U10	U10
+Audi	S4	2000	2002	1	B5	B5
+Audi	S4	2004	2005	2	B6	B6
+Audi	S4	2006	2008	3	B7	B7
+Audi	S4	2010	2016	4	B8	B8
+Audi	S4	2017	0	5	B9	B9
+Audi	RS 4	2007	2008	1	B7	B7
+Audi	A4 allroad	2013	2016	1	B8	B8
+Audi	A4 allroad	2017	0	2	B9	B9
+Audi	allroad	2001	2005	1	C5	C5
+Audi	A6	1995	1997	0	C4	C4
+Audi	A6 allroad	2021	0	1	C8	C8
+Audi	S6	2002	2003	1	C5	C5
+Audi	S6	2007	2011	2	C6	C6
+Audi	S6	2013	2018	3	C7	C7
+Audi	S6	2019	0	4	C8	C8
+Audi	S7	2013	2018	1	4G	4G
+Audi	S7	2019	0	2	4K	4K
+Audi	RS 7	2014	2018	1	4G	4G
+Audi	RS 7	2021	0	2	4K	4K
+Audi	A7 e	2021	0	1	4K	4K
+Audi	RS 6 Avant	2021	0	1	C8	C8
+Audi	A8	1997	2003	1	D2	D2
+Audi	A8	2004	2010	2	D3	D3
+Audi	A8	2011	2017	3	D4	D4
+Audi	A8	2018	0	4	D5	D5
+Audi	A8 L	2011	2017	3	D4	D4
+Audi	A8 e	2020	0	4	D5	D5
+Audi	A8 L e	2020	0	4	D5	D5
+Audi	S8	2001	2003	1	D2	D2
+Audi	S8	2007	2009	2	D3	D3
+Audi	S8	2013	2017	3	D4	D4
+Audi	S8	2020	0	4	D5	D5
+Audi	S3	2015	2020	1	8V	8V
+Audi	S3	2022	0	2	8Y	8Y
+Audi	RS 3	2018	2020	1	8V	8V
+Audi	RS 3	2022	0	2	8Y	8Y
+Audi	Q8	2019	0	1	4M	4M
+Audi	SQ8	2020	0	1	4M	4M
+Audi	SQ7	2020	0	1	4M	4M
+Audi	RS Q8	2020	0	1	4M	4M
+Audi	Q5 e	2020	0	1	FY	FY
+Audi	Q4	2022	0	1	MEB	MEB
+Audi	SQ6	2025	0	1	PPE	PPE
+Audi	Q6	2025	0	1	PPE	PPE
+Audi	TT	2000	2006	1	8N	8N
+Audi	TT	2008	2015	2	8J	8J
+Audi	TT	2016	0	3	8S	8S
+Audi	TTS	2009	2015	2	8J	8J
+Audi	TT RS	2018	0	3	8S	8S
+Audi	R8	2008	2015	1	42	Type 42
+Audi	R8	2017	0	2	4S	Type 4S
+Audi	e-tron	2019	2023	1	GE	GE
+Audi	e-tron Sportback	2020	2023	1	GE	GE
+Audi	e-tron GT	2022	0	1	J1	J1
+Audi	RS e-tron GT	2022	0	1	J1	J1
+Audi	S e-tron GT	2025	0	1	J1	J1
+Audi	RS 5	2013	2015	1	8T	8T
+Audi	RS 5	2018	0	2	F5	F5
+Lexus	UX	2019	0	1	ZA10	ZA10
+Lexus	RC	2015	0	1	XC10	XC10
+Lexus	LX	1996	1997	1	J80	J80
+Lexus	LX	1998	2007	2	J100	J100
+Lexus	LX	2008	2021	3	J200	J200
+Lexus	LX	2022	0	4	J310	J310
+Lexus	TX	2024	0	1	TA10	1st generation
+Lexus	SC	1992	2000	1	Z30	Z30
+Lexus	SC	2002	2010	2	Z40	Z40
+Lexus	HS	2010	2012	1	ANF10	ANF10
+Lexus	RZ	2023	0	1	XEB10	1st generation
+Lexus	LC	2018	0	1	Z100	Z100
+Lexus	LS	1990	1994	1	XF10	XF10
+Lexus	ES	1992	1996	2	XV10	XV10
+Volvo	XC70	2001	2007	1	P2	P2
+Volvo	XC70	2008	2016	2	P3	P3
+Volvo	S90	1997	1998	1	960	960-based
+Volvo	S90	2017	0	2	SPA	SPA
+Volvo	V90	2017	0	1	SPA	SPA
+Volvo	V90CC	2017	0	1	SPA	SPA
+Volvo	S80	1999	2006	1	P2	P2
+Volvo	S80	2007	2016	2	P3	P3
+Volvo	V70	2001	2007	2	P2	P2
+Volvo	V70	2008	2010	3	P3	P3
+Volvo	C70	1998	2004	1	P80	P80
+Volvo	C70	2006	2013	2	P1	P1
+Volvo	S40	2000	2004	1	P1	1st generation
+Volvo	S40	2005	2011	2	P1	2nd generation
+Volvo	V50	2005	2011	1	P1	P1
+Volvo	C30	2008	2013	1	P1	P1
+Volvo	V60	2015	2018	1	P3	P3
+Volvo	V60	2019	0	2	SPA	SPA
+Volvo	V60CC	2015	2018	1	P3	P3
+Volvo	V60CC	2019	0	2	SPA	SPA
+Volvo	S60 Cross Country	2016	2018	1	P3	P3
+Volvo	C40	2022	2024	1	CMA	CMA
+Volvo	EX40	2025	0	1	CMA	CMA
+Volvo	EX30	2025	0	1	SEA	SEA
+Volvo	EX90	2025	0	1	SPA2	SPA2
+Volvo	S70	1998	2000	1	P80	P80
+Volvo	850 Series	1993	1997	1	P80	P80
+Volvo	240 Series	1975	1993	1	240	240
+Volvo	740 Series	1985	1992	1	700	700
+Volvo	960 Series	1991	1997	1	900	900
+Mercedes-Benz	CLK-Class	1999	2003	1	W208	W208
+Mercedes-Benz	CLK-Class	2004	2009	2	W209	W209
+Mercedes-Benz	CLE	2024	0	1	C236	C236
+Mercedes-Benz	SL-Class	1990	2002	1	R129	R129
+Mercedes-Benz	SL-Class	2003	2012	2	R230	R230
+Mercedes-Benz	SL-Class	2013	2020	3	R231	R231
+Mercedes-Benz	SL-Class	2022	0	4	R232	R232
+Mercedes-Benz	SLK-Class	1998	2004	1	R170	R170
+Mercedes-Benz	SLK-Class	2005	2011	2	R171	R171
+Mercedes-Benz	SLK-Class	2012	2016	3	R172	R172
+Mercedes-Benz	SLC-Class	2017	2020	3	R172	R172
+Mercedes-Benz	CL-Class	2000	2006	1	C215	C215
+Mercedes-Benz	CL-Class	2007	2014	2	C216	C216
+Mercedes-Benz	G-Class	2002	2018	1	W463	W463
+Mercedes-Benz	G-Class	2019	0	2	W464	W464
+Mercedes-Benz	R-Class	2006	2012	1	W251	W251
+Mercedes-Benz	B-Class	2014	2017	1	W242	W242
+Mercedes-Benz	Metris	2016	2023	1	W447	W447
+Mercedes-Benz	AMG GT	2016	2023	1	C190/X290	C190/X290
+Mercedes-Benz	AMG GT	2024	0	2	C192	C192
+Mercedes-Benz	EQB-Class	2022	0	1	X243	X243
+Mercedes-Benz	EQE-Class Sedan	2023	0	1	V295	V295
+Mercedes-Benz	EQE-Class SUV	2023	0	1	X294	X294
+Mercedes-Benz	EQS-Class Sedan	2022	0	1	V297	V297
+Mercedes-Benz	EQS-Class SUV	2023	0	1	X296	X296
+Mercedes-Benz	S-Class	1992	1999	0	W140	W140
+Mercedes-Benz	E-Class	1994	1995	0	W124	W124
+Mercedes-Benz	190	1984	1993	1	W201	W201
+Mercedes-Benz	300	1986	1995	0	W124	W124
+Mercedes-Benz	350	1990	1995	0	W140	W140
+Mercedes-Benz	380	1981	1985	0	W126	W126
+Mercedes-Benz	420	1986	1991	0	W126	W126
+Mercedes-Benz	500	1984	1992	0	W126	W126
+Mercedes-Benz	560	1986	1991	0	W126	W126
+Mercedes-Benz	600	1992	1993	0	W140	W140
+Jeep	Wagoneer	2022	0	1	WS	WS
+Jeep	Wagoneer L	2023	0	1	WS	WS
+Jeep	Wagoneer S	2024	0	1	WS	WS
+Jeep	Grand Wagoneer	1984	1991	1	SJ	SJ
+Jeep	Grand Wagoneer	2022	0	2	WS	WS
+Jeep	Grand Wagoneer L	2023	0	2	WS	WS
+Jeep	Wrangler JK	2007	2018	3	JK	JK
+Jeep	Commander	2006	2010	1	XK	XK
+Jeep	J-10	1974	1988	1	SJ	SJ
+Jeep	CJ-7	1976	1986	1	CJ	CJ
+Jeep	Comanche	1986	1992	1	MJ	MJ
+Chrysler	Sebring	1996	2000	1	JX/FJ	1st generation
+Chrysler	Sebring	2001	2006	2	JR	2nd generation
+Chrysler	Sebring	2007	2010	3	JS	3rd generation
+Chrysler	300C	2005	2010	1	LX	LX
+Chrysler	300C	2011	0	2	LD	LD
+Chrysler	Crossfire	2004	2008	1	ZH	ZH
+Chrysler	Aspen	2007	2009	1	HG	HG
+Chrysler	Concorde	1998	2004	2	LH	2nd generation
+Chrysler	Cirrus	1995	2000	1	JA	JA
+Chrysler	LHS	1999	2001	2	LH	2nd generation
+Chrysler	Grand Caravan	2021	0	5	RU	RU
+Chrysler	Grand Voyager	1996	2000	3	NS	3rd generation
+Chrysler	LeBaron	1990	1995	3	AJ	3rd generation
+Chrysler	FIFTH AVENUE	1982	1989	1	M-body	M-body
+Dodge	Caliber	2007	2012	1	PM	PM
+Dodge	Hornet	2023	0	1	M6	1st generation
+Dodge	Nitro	2007	2011	1	KA	KA
+Dodge	Magnum	2005	2008	1	LX	LX
+Dodge	Sprinter	2003	2009	1	T1N	T1N
+Dodge	Neon	2000	2005	2	PL	2nd generation
+Dodge	Stratus	1995	2000	1	JA	1st generation
+Dodge	Stratus	2001	2006	2	JR	2nd generation
+Dodge	Intrepid	1998	2004	2	LH	2nd generation
+Dodge	Viper	1992	2002	1	SR	SR
+Dodge	Viper	2003	2010	2	ZB	ZB
+Dodge	Caravan	1991	1995	3	AS	3rd generation
+Dodge	Caravan	1996	2000	4	NS	4th generation
+Dodge	Caravan	2001	2007	5	RS	5th generation
+Dodge	Ram Van	1979	2003	1	B-series	B-series
+Dodge	Ram Wagon	1979	2003	1	B-series	B-series
+Dodge	Ram Chassis Cab	2002	2009	1	DR/DH	DR/DH
+Dodge	Ram Chassis Cab	2011	0	2	DJ	DJ
+Dodge	D-Series	1981	1993	1	D	D-series
+Dodge	W-Series	1981	1993	1	W	W-series
+Dodge	OMNI	1978	1990	1	L-body	L-body
+Dodge	Spirit	1989	1995	1	AA	AA
+Dodge	Stealth	1991	1996	1	Z	1st generation
+Toyota	Scion FR-S	2013	2016	1	ZN6	ZN6
+Toyota	Scion xD	2008	2014	1	NCP110	NCP110
+Toyota	Scion xA	2004	2006	1	NCP60	NCP60
+Toyota	Scion iA	2016	2016	1	DJ	DJ
+Toyota	Scion iM	2016	2016	1	E170	E170
+Toyota	Scion iQ	2012	2015	1	AJ10	AJ10
+Toyota	Yaris iA	2017	2018	1	DJ	DJ
+Toyota	Yaris	2020	2020	3	DJ	DJ
+Toyota	86	2017	2020	1	ZN6	ZN6
+Toyota	GR86	2022	0	2	ZN8	ZN8
+Toyota	GR Corolla	2023	0	1	E210	E210
+Toyota	COROLLA iM	2017	2018	1	E170	E170
+Toyota	Corolla	1988	1992	6	E90	E90
+Toyota	Camry	1983	1986	1	V10	V10
+Toyota	Camry	1987	1991	2	V20	V20
+Toyota	Land Cruiser	1981	1990	1	J60	J60
+Toyota	Land Cruiser	1991	1997	2	J80	J80
+Toyota	Land Cruiser	1998	2007	3	J100	J100
+Toyota	Land Cruiser	2008	2021	4	J200	J200
+Toyota	Land Cruiser	2024	0	5	J250	J250
+Toyota	4Runner	1990	1995	2	N120	N120
+Toyota	RAV4 Prime (PHEV)	2021	0	5	XA50	XA50
+Toyota	Crown	2023	0	1	S235	S235
+Toyota	Crown Signia	2025	0	1	AXUH	1st generation
+Toyota	Mirai	2016	2020	1	JPD10	JPD10
+Toyota	Mirai	2021	0	2	JPD20	JPD20
+Toyota	bZ4X	2023	2025	1	EA10	1st generation
+Toyota	bZ	2026	0	1	EA10	1st generation
+Toyota	bZ Woodland	2026	0	1	EA10	1st generation
+Toyota	Echo	2000	2005	1	XP10	XP10
+Toyota	Supra	1993	1998	4	A80	A80
+Toyota	Supra	2020	0	5	A90	A90
+Toyota	Pick-Up	1983	1988	5	N50	N50
+Toyota	Pick-Up	1989	1995	6	N80	N80
+Toyota	T100	1993	1998	1	1st	1st generation
+Toyota	Celica	1986	1989	4	T160	T160
+Toyota	Celica	1990	1993	5	T180	T180
+Toyota	Celica	1994	1999	6	T200	T200
+Toyota	Celica	2000	2005	7	T230	T230
+Toyota	MR2	1985	1989	1	W10	W10
+Toyota	MR2	1991	1995	2	W20	W20
+Toyota	MR2	2000	2005	3	W30	W30
+Toyota	Tercel	1987	1990	3	L30	L30
+Toyota	Tercel	1991	1994	4	L40	L40
+Toyota	Tercel	1995	1999	5	L50	L50
+Toyota	Previa	1991	1997	1	XR10	XR10
+Toyota	C-HR	2026	0	2	AX20	AX20
+BMW	330e	2016	2018	1	F30	F30
+BMW	330e	2021	0	2	G20	G20
+BMW	318iS	1990	1991	1	E30	E30
+Jeep	Cherokee	2026	0	3	KM	KM
+Audi	A8 L	2018	0	4	D5	D5
+Audi	TTS	2016	0	3	8S	8S
+Audi	Cabriolet	1994	1998	1	B4	B4
+Audi	5000	1984	1988	1	C3	C3
+Audi	200	1989	1991	1	C3	C3
+Mercedes-Benz	300	1977	1985	0	W123	W123
+Toyota	Tercel	1983	1986	2	L20	L20
+Volvo	V70	1998	2000	1	P80	P80
+Dodge	Grand Caravan	1991	1995	3	AS	3rd generation
+Dodge	Grand Caravan	1996	2000	4	NS	4th generation

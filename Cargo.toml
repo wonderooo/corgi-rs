@@ -1,11 +1,19 @@
+[workspace]
+members = [".", "tools/validate"]
+
 [package]
 name = "corgi-rs"
-version = "0.2.5"
+version = "0.3.0"
 edition = "2024"
 description = "Vehicle VIN decoding library based on NHTSA database for Rust"
 keywords = ["nhtsa", "vin", "vehicles", "decoding"]
 categories = ["automotive", "parsing", "encoding"]
 license = "MIT"
+exclude = ["tools/validate"]
+
+[[bin]]
+name = "corgi"
+path = "src/bin/corgi.rs"
 
 [dependencies]
 chrono = "0.4.43"
@@ -19,6 +27,7 @@ dirs = "6.0.0"
 dirs = "6.0.0"
 fst = "0.4.7"
 rkyv = "0.8.15"
+zstd = "0.13.3"
 
 [features]
 default = ["parallel"]
