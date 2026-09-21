@@ -809,6 +809,44 @@ impl VinDecoder {
         decoded
     }
 
+    /// Decode every VIN in `vins`, returning one result per input, in input order.
+    ///
+    /// This is the shape to use when the results have to line up with the rows
+    /// they came from: unlike [`decode_batch`](Self::decode_batch) it keeps
+    /// duplicates and the order of the input, and it accepts anything that
+    /// borrows as a string. With the `parallel` feature the VINs are split
+    /// across Rayon chunks.
+    ///
+    /// ```no_run
+    /// # use corgi_rs::VinDecoder;
+    /// let decoder = VinDecoder::new();
+    /// let vins = ["1C6RR7LT2JS179571", "5XYRLDLC3NG097496"];
+    ///
+    /// for (vin, result) in vins.iter().zip(decoder.decode_all(&vins)) {
+    ///     match result {
+    ///         Ok(info) => println!("{vin}: {} {}", info.year, info.make),
+    ///         Err(err) => eprintln!("{vin}: {err}"),
+    ///     }
+    /// }
+    /// ```
+    pub fn decode_all<S>(&self, vins: &[S]) -> Vec<Result<VehicleInfo, CorgiError>>
+    where
+        S: AsRef<str> + Sync,
+    {
+        #[cfg(not(feature = "parallel"))]
+        let decoded = vins.iter().map(|vin| self.decode(vin.as_ref())).collect();
+
+        // `collect` off an indexed parallel iterator restores the input order.
+        #[cfg(feature = "parallel")]
+        let decoded = vins
+            .into_par_iter()
+            .with_min_len(RAYON_CHUNK_SIZE)
+            .map(|vin| self.decode(vin.as_ref()))
+            .collect();
+
+        decoded
+    }
+
     /// Consume an owned `Vec<VIN>` and decode each entry, returning owned VIN keys.
     pub fn decode_batch_owned(
         &self,
@@ -912,6 +950,66 @@ pub fn elements() -> &'static [Element] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decode_all_keeps_input_order_and_duplicates() {
+        let decoder = VinDecoder::new();
+        // A duplicate and a deliberately undecodable entry: both must survive,
+        // in place, so results line up with the rows they came from.
+        let vins = [
+            "5XYRLDLC3NG097496",
+            "1C6RR7LT2JS179571",
+            "5XYRLDLC3NG097496",
+            "NOTAVIN",
+            "1HGCP26739A060971",
+        ];
+
+        let results = decoder.decode_all(&vins);
+
+        assert_eq!(results.len(), vins.len());
+        assert_eq!(results[0].as_ref().expect("decodes").make, "Kia");
+        assert_eq!(results[1].as_ref().expect("decodes").make, "Ram");
+        assert_eq!(results[2].as_ref().expect("decodes").make, "Kia");
+        assert!(results[3].is_err());
+        assert_eq!(results[4].as_ref().expect("decodes").make, "Honda");
+    }
+
+    #[test]
+    fn decode_all_accepts_owned_and_borrowed_vins() {
+        let decoder = VinDecoder::new();
+        let owned = vec!["1C6RR7LT2JS179571".to_string()];
+        let borrowed = ["1C6RR7LT2JS179571"];
+
+        assert_eq!(
+            decoder.decode_all(&owned)[0]
+                .as_ref()
+                .expect("decodes")
+                .make,
+            decoder.decode_all(&borrowed)[0]
+                .as_ref()
+                .expect("decodes")
+                .make
+        );
+    }
+
+    #[test]
+    fn decode_all_agrees_with_decode_one_at_a_time() {
+        let decoder = VinDecoder::new();
+        let vins = [
+            "5XYRLDLC3NG097496",
+            "1C6RR7LT2JS179571",
+            "1HGCP26739A060971",
+            "4T1BF1FK8HU640530",
+        ];
+
+        for (vin, batched) in vins.iter().zip(decoder.decode_all(&vins)) {
+            let single = decoder.decode(vin).expect("decodes");
+            let batched = batched.expect("decodes");
+            assert_eq!(single.make, batched.make, "{vin}");
+            assert_eq!(single.model, batched.model, "{vin}");
+            assert_eq!(single.attributes, batched.attributes, "{vin}");
+        }
+    }
 
     #[test]
     fn normalize_strips_formatting_and_upcases() {

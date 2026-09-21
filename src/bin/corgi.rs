@@ -4,10 +4,12 @@
 //! corgi 1C6RR7LT2JS179571
 //! corgi --format json 5XYRLDLC3NG097496 | jq .Make
 //! cut -d, -f2 lots.csv | corgi --format tsv --fields Make,Model,ModelYear,EngineHP
+//! corgi --input vins.txt --format jsonl
 //! ```
 
 use std::collections::BTreeMap;
-use std::io::{BufRead, BufWriter, IsTerminal, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, IsTerminal, Write};
 use std::process::ExitCode;
 
 use corgi_rs::{VehicleInfo, VinDecoder, element};
@@ -60,12 +62,12 @@ fn main() -> ExitCode {
         decoder = decoder.with_current_year(year);
     }
 
-    let results: Vec<(String, Result<VehicleInfo, String>)> = vins
+    let results: Vec<(String, Result<VehicleInfo, String>)> = decoder
+        .decode_all(&vins)
         .into_iter()
-        .map(|vin| {
-            let decoded = decoder.decode(&vin).map_err(|err| err.to_string());
-            (vin, decoded)
-        })
+        .map(|result| result.map_err(|err| err.to_string()))
+        .zip(&vins)
+        .map(|(decoded, vin)| (vin.clone(), decoded))
         .collect();
 
     let stdout = std::io::stdout();
@@ -86,16 +88,32 @@ fn main() -> ExitCode {
     }
 }
 
+/// Read VINs from `reader`, one per line. Blank lines and anything after a `#`
+/// are ignored, so a list can carry comments and a CSV comment header.
+fn read_vins(reader: impl BufRead, out: &mut Vec<String>) -> std::io::Result<()> {
+    for line in reader.lines() {
+        let line = line?;
+        let vin = line.split('#').next().unwrap_or_default().trim();
+        if !vin.is_empty() {
+            out.push(vin.to_string());
+        }
+    }
+    Ok(())
+}
+
 const USAGE: &str = "\
 corgi — decode vehicle identification numbers
 
 USAGE
     corgi [OPTIONS] [VIN]...
 
-VINs are taken from the arguments. With none, or with `-`, they are read from
-standard input, one per line; blank lines and anything after a `#` are ignored.
+VINs are taken from the arguments and from `--input` files. If neither names
+one, or if `-` is given, they are read from standard input. In a file or on
+standard input they go one per line; blank lines and anything after a `#` are
+ignored.
 
 OPTIONS
+    -i, --input FILE      read VINs from FILE, one per line (repeatable, `-` is stdin)
     -f, --format FORMAT   text (default), line, json, jsonl or tsv
         --fields LIST     comma-separated keys to output, e.g. Make,Model,EngineHP
         --list-fields     print every key that can be requested, and exit
@@ -130,6 +148,8 @@ struct Args {
     format: Format,
     fields: Option<Vec<String>>,
     vins: Vec<String>,
+    /// Files to read VINs from; `-` means standard input.
+    inputs: Vec<String>,
     read_stdin: bool,
     strict: bool,
     year: Option<i32>,
@@ -142,6 +162,7 @@ impl Args {
             format: Format::Text,
             fields: None,
             vins: Vec::new(),
+            inputs: Vec::new(),
             read_stdin: false,
             strict: false,
             year: None,
@@ -194,6 +215,7 @@ impl Args {
                             .map_err(|_| "--year needs a number".to_string())?,
                     )
                 }
+                "-i" | "--input" => args.inputs.push(value(&arg)?),
                 "--strict" => args.strict = true,
                 "--no-warnings" => args.warnings = false,
                 "-" => args.read_stdin = true,
@@ -207,27 +229,36 @@ impl Args {
         Ok(Some(args))
     }
 
-    /// The VINs to decode, from the arguments or from standard input.
+    /// The VINs to decode, from the arguments, from `--input` files, or from
+    /// standard input. Sources are concatenated in that order.
     fn collect_vins(&self) -> std::io::Result<Vec<String>> {
-        if !self.vins.is_empty() && !self.read_stdin {
-            return Ok(self.vins.clone());
+        let mut vins = self.vins.clone();
+
+        for path in &self.inputs {
+            if path == "-" {
+                read_vins(std::io::stdin().lock(), &mut vins)?;
+            } else {
+                let file = File::open(path)
+                    .map_err(|err| std::io::Error::new(err.kind(), format!("{path}: {err}")))?;
+                read_vins(BufReader::new(file), &mut vins)?;
+            }
         }
 
-        let mut vins = self.vins.clone();
+        // Arguments and files are explicit; only fall back to stdin when
+        // neither named anything, or when `-` asked for it.
+        if !vins.is_empty() && !self.read_stdin {
+            return Ok(vins);
+        }
         // Reading from an interactive terminal would just hang; treat that as
         // "no input" so the caller gets the usage message.
         if std::io::stdin().is_terminal() && !self.read_stdin {
             return Ok(vins);
         }
-
-        for line in std::io::stdin().lock().lines() {
-            let line = line?;
-            let vin = line.split('#').next().unwrap_or_default().trim();
-            if !vin.is_empty() {
-                vins.push(vin.to_string());
-            }
+        if !self.inputs.is_empty() && !self.read_stdin {
+            return Ok(vins);
         }
 
+        read_vins(std::io::stdin().lock(), &mut vins)?;
         Ok(vins)
     }
 
@@ -612,6 +643,69 @@ mod tests {
         assert_eq!(parsed.vins.len(), 2);
         assert_eq!(parsed.format, Format::Text);
         assert!(!parsed.read_stdin);
+    }
+
+    #[test]
+    fn input_files_parse_and_repeat() {
+        let parsed = args(&["-i", "a.txt", "--input", "b.txt", "1C6RR7LT2JS179571"]);
+        assert_eq!(parsed.inputs, vec!["a.txt", "b.txt"]);
+        assert_eq!(parsed.vins, vec!["1C6RR7LT2JS179571"]);
+        // A path is never mistaken for a VIN.
+        assert!(!parsed.vins.iter().any(|vin| vin.ends_with(".txt")));
+    }
+
+    #[test]
+    fn read_vins_skips_blanks_and_comments() {
+        let listing = "\
+1C6RR7LT2JS179571
+# a comment line
+
+5XYRLDLC3NG097496   # trailing note
+   1HGCP26739A060971
+";
+        let mut vins = Vec::new();
+        read_vins(listing.as_bytes(), &mut vins).expect("reads");
+        assert_eq!(
+            vins,
+            vec![
+                "1C6RR7LT2JS179571",
+                "5XYRLDLC3NG097496",
+                "1HGCP26739A060971"
+            ]
+        );
+    }
+
+    #[test]
+    fn collect_vins_reads_a_file_after_the_arguments() {
+        let dir = std::env::temp_dir().join("corgi-cli-collect-test");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let path = dir.join("vins.txt");
+        std::fs::write(&path, "5XYRLDLC3NG097496\n1HGCP26739A060971\n").expect("write");
+
+        let parsed = args(&[
+            "1C6RR7LT2JS179571",
+            "--input",
+            path.to_str().expect("utf-8 path"),
+        ]);
+        let vins = parsed.collect_vins().expect("collects");
+
+        // Positional arguments first, then the file, in file order.
+        assert_eq!(
+            vins,
+            vec![
+                "1C6RR7LT2JS179571",
+                "5XYRLDLC3NG097496",
+                "1HGCP26739A060971"
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_missing_input_file_names_itself() {
+        let parsed = args(&["--input", "/definitely/not/here.txt"]);
+        let err = parsed.collect_vins().expect_err("should fail");
+        assert!(err.to_string().contains("/definitely/not/here.txt"));
     }
 
     #[test]
