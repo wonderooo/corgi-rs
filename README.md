@@ -116,11 +116,15 @@ corgi 1C6RR7LT2JS179571
     ...
 ```
 
-VINs come from the arguments or, with none or with `-`, from standard input one
-per line. `--format` picks the shape — `text`, `line`, `json`, `jsonl` or `tsv`
-— and `--fields` picks the columns:
+VINs come from the arguments, from `--input` files, or — with neither, or with
+`-` — from standard input. In a file or on standard input they go one per line;
+blank lines and anything after a `#` are ignored. `--format` picks the shape —
+`text`, `line`, `json`, `jsonl` or `tsv` — and `--fields` picks the columns:
 
 ```sh
+# a list from a file
+corgi --input vins.txt --format line
+
 # skim a list
 cut -d, -f2 lots.csv | corgi --format line
 
@@ -235,12 +239,34 @@ let info = VinDecoder::new().decode("1C6RR7LT0JS179571").unwrap();
 assert!(info.warnings.contains(&Warning::CheckDigitMismatch));
 ```
 
-## Batch decoding
+## Decoding a list
 
-`decode_batch` and `decode_batch_owned` decode a slice of VINs, parallelised
-with Rayon under the default `parallel` feature. Build one `VinDecoder` and
-share it: construction memory-maps the tables, decoding allocates only the
-result.
+`decode_all` takes a slice of VINs and returns one result per input, **in input
+order**, keeping duplicates — so the results line up with the rows they came
+from. It accepts anything that borrows as a string.
+
+```rust
+# use corgi_rs::VinDecoder;
+let decoder = VinDecoder::new();
+let vins = ["1C6RR7LT2JS179571", "5XYRLDLC3NG097496", "1HGCP26739A060971"];
+
+let makes: Vec<_> = decoder
+    .decode_all(&vins)
+    .into_iter()
+    .map(|result| result.map(|info| info.make))
+    .collect();
+
+assert_eq!(makes[0].as_deref(), Ok("Ram"));
+assert_eq!(makes[2].as_deref(), Ok("Honda"));
+```
+
+`decode_batch` and `decode_batch_owned` return a `HashMap` keyed by VIN instead.
+That is handy for lookups, but it collapses duplicates and loses the order, so
+prefer `decode_all` when the input is a list.
+
+All three parallelise with Rayon under the default `parallel` feature. Build one
+`VinDecoder` and share it: construction memory-maps the tables, decoding
+allocates only the result.
 
 ## Regenerating the data
 
