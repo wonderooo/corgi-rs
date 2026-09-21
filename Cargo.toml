@@ -9,7 +9,7 @@ description = "Vehicle VIN decoding library based on NHTSA database for Rust"
 keywords = ["nhtsa", "vin", "vehicles", "decoding"]
 categories = ["automotive", "parsing", "encoding"]
 license = "MIT"
-exclude = ["tools/validate"]
+exclude = ["tools/validate", "tools/README.md"]
 
 [[bin]]
 name = "corgi"

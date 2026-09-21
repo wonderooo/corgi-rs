@@ -60,7 +60,7 @@ off the VIN, but Ford and Toyota use those positions for cab, series and weight
 rating and reuse the same codes for twenty years.
 
 So the generation comes from a table maintained by hand in
-[`tools/generations.tsv`](tools/generations.tsv): 605 models, 1,185
+`tools/generations.tsv`: 605 models, 1,185
 generations, resolving on **97.1%** of auction lots. Every boundary in it is
 checked against the VIN body codes of real cars
 (`corgi-validate --check-generations`).
@@ -141,8 +141,9 @@ has the same shape. Exit status is 1 if any VIN failed to decode.
 
 Measured against 627,103 Copart and IAAI listings, comparing each decode with
 what the auction house published for that lot. Only rows where both sides had a
-value count toward accuracy; see [`tools/validate`](tools/validate) for the
-harness and its caveats.
+value count toward accuracy, and the harness excludes ground truth that an
+earlier decode had written, which would otherwise measure agreement with the
+old decoder rather than correctness.
 
 | field | coverage | accuracy | relaxed | accuracy before |
 |---|---|---|---|---|
@@ -244,8 +245,8 @@ result.
 ## Regenerating the data
 
 `assets/` is a compressed export of the vPIC database, currently NHTSA's
-**2026-08** release. See [`tools/README.md`](tools/README.md) for how to refresh
-it and how to re-measure accuracy afterwards.
+**2026-08** release. `tools/extract_assets.sql` regenerates it from a newer
+release; the repository has the full procedure.
 
 ## Feature flags
 
