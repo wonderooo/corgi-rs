@@ -3,12 +3,16 @@ members = [".", "tools/validate"]
 
 [package]
 name = "corgi-rs"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "Vehicle VIN decoding library based on NHTSA database for Rust"
 keywords = ["nhtsa", "vin", "vehicles", "decoding"]
 categories = ["automotive", "parsing", "encoding"]
 license = "MIT"
+repository = "https://github.com/wonderooo/corgi-rs"
+homepage = "https://github.com/wonderooo/corgi-rs"
+documentation = "https://docs.rs/corgi-rs"
+readme = "README.md"
 exclude = ["tools/validate", "tools/README.md"]
 
 [[bin]]
