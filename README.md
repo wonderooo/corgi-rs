@@ -60,7 +60,7 @@ off the VIN, but Ford and Toyota use those positions for cab, series and weight
 rating and reuse the same codes for twenty years.
 
 So the generation comes from a table maintained by hand in
-`tools/generations.tsv`: 605 models, 1,185
+[`tools/generations.tsv`](https://github.com/wonderooo/corgi-rs/blob/main/tools/generations.tsv): 605 models, 1,185
 generations, resolving on **97.1%** of auction lots. Every boundary in it is
 checked against the VIN body codes of real cars
 (`corgi-validate --check-generations`).
@@ -271,8 +271,8 @@ allocates only the result.
 ## Regenerating the data
 
 `assets/` is a compressed export of the vPIC database, currently NHTSA's
-**2026-08** release. `tools/extract_assets.sql` regenerates it from a newer
-release; the repository has the full procedure.
+**2026-08** release. [`tools/extract_assets.sql`](https://github.com/wonderooo/corgi-rs/blob/main/tools/extract_assets.sql)
+regenerates it from a newer release; the repository has the full procedure.
 
 ## Feature flags
 
@@ -284,5 +284,5 @@ release; the repository has the full procedure.
 cargo test
 ```
 
-`tests/decode_real_vins.rs` decodes VINs from real auction listings and checks
-them against what the auction house published.
+[`tests/decode_real_vins.rs`](https://github.com/wonderooo/corgi-rs/blob/main/tests/decode_real_vins.rs) decodes VINs from
+real auction listings and checks them against what the auction house published.
